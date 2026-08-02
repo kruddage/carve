@@ -14,9 +14,11 @@
  * detached `PerspectiveCamera`, drive it, and read back position/quaternion.
  * `gl-renderer.ts` is the only caller that needs a real WebGL context.
  *
- * Intent mapping (issue #8, once it exists): `orbit`/`pan`/`dolly` are meant
- * to be called directly from pointer-drag deltas; nothing here reads a DOM
- * event.
+ * Intent mapping (issue #8): `orbit`/`pan`/`dolly` are meant to be called
+ * directly from pointer-drag deltas, and nothing here reads a DOM event. #8's
+ * pointer adapter claims the primary button only and leaves middle-drag,
+ * right-drag and wheel to whoever owns the viewport, precisely so these can be
+ * wired straight to it — camera motion is not a document intent.
  */
 
 import { MathUtils, PerspectiveCamera, Vector3 } from 'three';
@@ -25,6 +27,32 @@ import { MathUtils, PerspectiveCamera, Vector3 } from 'three';
 export interface Bounds {
   readonly min: readonly [number, number, number];
   readonly max: readonly [number, number, number];
+}
+
+/**
+ * The camera as plain numbers, for the layer that has to cast rays through it.
+ *
+ * #8 needs a ray from a screen position, which needs the camera's position,
+ * orientation, field of view and aspect — and it must not get them by reaching
+ * for `PerspectiveCamera`, or the "no three.js above this layer" rule in
+ * `index.ts` is over. This is the minimum that reconstructs a ray and nothing
+ * more; `CameraControls.pose` is where it comes out.
+ *
+ * Conventions are core's and three.js's: quaternion `(x, y, z, w)`, and the
+ * camera looks down its own **-Z**.
+ */
+export interface CameraPose {
+  readonly position: { readonly x: number; readonly y: number; readonly z: number };
+  readonly orientation: {
+    readonly x: number;
+    readonly y: number;
+    readonly z: number;
+    readonly w: number;
+  };
+  /** Vertical field of view, degrees. */
+  readonly fovDegrees: number;
+  /** Width / height. */
+  readonly aspect: number;
 }
 
 export const STANDARD_VIEWS = ['front', 'top', 'right', 'home'] as const;
@@ -91,6 +119,24 @@ export class CameraRig {
 
   get radius(): number {
     return this.#radius;
+  }
+
+  /**
+   * The camera as plain data — see `CameraPose`.
+   *
+   * Read on every pointer event by #8's adapter, so it is a snapshot rather
+   * than a live view: handing out the `PerspectiveCamera`'s own `Vector3` and
+   * `Quaternion` would let a caller mutate the camera by writing to what looks
+   * like a read.
+   */
+  get pose(): CameraPose {
+    const { position, quaternion } = this.camera;
+    return {
+      position: { x: position.x, y: position.y, z: position.z },
+      orientation: { x: quaternion.x, y: quaternion.y, z: quaternion.z, w: quaternion.w },
+      fovDegrees: this.camera.fov,
+      aspect: this.camera.aspect,
+    };
   }
 
   setAspect(aspect: number): void {
