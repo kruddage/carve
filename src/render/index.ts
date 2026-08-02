@@ -56,16 +56,16 @@
 
 import type { MeshPayload } from '../kernel/index.js';
 
-import type { Bounds, StandardView } from './camera-rig.js';
+import type { Bounds, CameraPose, StandardView } from './camera-rig.js';
 import { CameraRig } from './camera-rig.js';
 import { GlRenderer } from './gl-renderer.js';
 import { SceneGraph } from './scene-graph.js';
 
 export const RENDER_LAYER = 'render';
 
-export { STANDARD_VIEWS, type Bounds, type StandardView } from './camera-rig.js';
+export { STANDARD_VIEWS, type Bounds, type CameraPose, type StandardView } from './camera-rig.js';
 
-/** Orbit/pan/zoom, driven by #8's pointer/XR intents once that layer exists. */
+/** Orbit/pan/zoom. #8's pointer adapter deliberately leaves these to the caller — see docs/input.md. */
 export interface CameraControls {
   /** Orbit by a drag delta, in radians. */
   orbit(deltaAzimuth: number, deltaPolar: number): void;
@@ -79,6 +79,11 @@ export interface CameraControls {
   frame(bounds: Bounds | null): void;
   /** The current orbit target, world space. */
   readonly target: readonly [number, number, number];
+  /**
+   * Position, orientation and projection as plain numbers, so #8 can build a
+   * ray through a screen point without seeing a `PerspectiveCamera`.
+   */
+  readonly pose: CameraPose;
 }
 
 /** What the instrumentation overlay (#15) reads every frame. */
@@ -161,6 +166,9 @@ export function createRenderer(
     frame: (bounds) => cameraRig.frame(bounds),
     get target() {
       return cameraRig.target;
+    },
+    get pose() {
+      return cameraRig.pose;
     },
   };
 

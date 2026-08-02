@@ -116,6 +116,31 @@ describe('CameraRig', () => {
     expect(large).toBeGreaterThan(small);
   });
 
+  it('exposes a pose of plain numbers, which is all #8 needs to cast a ray', () => {
+    const rig = new CameraRig({ fovDegrees: 60 });
+    rig.setAspect(16 / 9);
+    rig.setView('front');
+
+    const pose = rig.pose;
+
+    expect(pose.fovDegrees).toBe(60);
+    expect(pose.aspect).toBeCloseTo(16 / 9, 6);
+    expectClose(pose.position.x, 0);
+    expect(pose.position.z).toBeGreaterThan(0);
+    // Front view looks down -Z with no roll: the identity orientation.
+    expectClose(Math.abs(pose.orientation.w), 1, 5);
+  });
+
+  it('poses are snapshots, so reading one cannot move the camera', () => {
+    const rig = new CameraRig();
+    const pose = rig.pose;
+    const cameraX = rig.camera.position.x;
+
+    (pose.position as { x: number }).x = 999;
+
+    expect(rig.camera.position.x).toBe(cameraX);
+  });
+
   it('setAspect updates the camera projection only when the aspect changes', () => {
     const rig = new CameraRig();
     const matrixBefore = rig.camera.projectionMatrix.clone();
