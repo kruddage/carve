@@ -16,7 +16,7 @@
  * Must NOT appear here:
  *   - imports from src/render/, src/input/, src/ui/ or src/xr/ — enforced by
  *     ESLint, see eslint.config.js and test/import-boundary.test.ts
- *   - three.js, WebGPU/WebGL types, or anything else renderer-shaped
+ *   - three.js, WebGL types, or anything else renderer-shaped
  *   - DOM or WebXR APIs: `document`, `window`, `navigator.xr`, event listeners
  *
  * The test for whether something belongs here is "does it still make sense

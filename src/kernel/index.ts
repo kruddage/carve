@@ -15,9 +15,9 @@
  * Must NOT appear here:
  *   - imports from src/render/, src/input/, src/ui/ or src/xr/ — enforced by
  *     ESLint, see eslint.config.js and test/import-boundary.test.ts
- *   - three.js geometry/material objects: this layer emits buffers, and the
- *     renderer decides what to wrap them in. That is what makes the WebGL2 ↔
- *     WebGPU backend swap in issue #4 a swap rather than a rewrite.
+ *   - three.js geometry/material objects: this layer emits plain buffers, and
+ *     the renderer decides what to wrap them in. That is what lets the kernel
+ *     be tested in Node with no GPU anywhere in sight.
  *   - DOM access. A Worker has no `document`, and the kernel must stay
  *     runnable headlessly under Vitest.
  *
