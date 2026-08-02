@@ -39,10 +39,13 @@ export type NodeKind = (typeof NODE_KINDS)[number];
  * The v1 primitive set from issue #1.
  *
  * Only the *names* live here. Parameter schemas, units, defaults and the
- * registry that validates them are issue #7a, and mesh construction is #7b;
- * until 7a lands, `params` is an unvalidated bag of numbers and the document
- * model does not care what is in it. That is deliberate — the model's job is to
- * keep parameters editable and undoable, not to know what a torus is.
+ * registry that validates them are in `primitives.ts` (issue #7a), and mesh
+ * construction is #7b. `params` stays an unvalidated bag of numbers as far as
+ * this file is concerned, and the document model does not care what is in it.
+ * That is deliberate — the model's job is to keep parameters editable and
+ * undoable, not to know what a torus is. Code that spawns a primitive for a
+ * user should call `spawnPrimitive` from `primitives.ts` rather than
+ * `primitiveNode` here, so nothing reaches the store un-normalized.
  */
 export const PRIMITIVE_KINDS = ['box', 'cylinder', 'sphere', 'cone', 'torus', 'wedge'] as const;
 export type PrimitiveKind = (typeof PRIMITIVE_KINDS)[number];
@@ -59,7 +62,7 @@ interface NodeBase {
 export interface PrimitiveNode extends NodeBase {
   readonly kind: 'primitive';
   readonly primitive: PrimitiveKind;
-  /** Shape parameters in metres or radians. Schema arrives with #7a. */
+  /** Shape parameters in metres or radians. Schema lives in `primitives.ts`. */
   readonly params: Readonly<Record<string, number>>;
 }
 
