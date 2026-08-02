@@ -26,6 +26,7 @@
  * ## Where to start reading (issue #5)
  *
  *   `nodes.ts`      the four node kinds, and what each one is for
+ *   `primitives.ts` what each primitive's parameters are, and the registry
  *   `store.ts`      the tree and its invariants; no undo, no events
  *   `commands.ts`   the only way anything mutates; apply/invert
  *   `history.ts`    the undo stack and the drag-coalescing policy
@@ -78,6 +79,34 @@ export {
   type TransformNode,
   type TransformSpec,
 } from './nodes.js';
+
+export {
+  DEFAULT_TESSELLATION_QUALITY,
+  PARAMETER_UNITS,
+  PRIMITIVE_REGISTRY,
+  TESSELLATION_QUALITIES,
+  TESSELLATION_SCALE,
+  applyTessellationQuality,
+  defaultParameters,
+  formatParameter,
+  fromDisplayValue,
+  getParameterSchema,
+  getPrimitive,
+  listPrimitives,
+  normalizeParameters,
+  parametersKey,
+  spawnPrimitive,
+  toDisplayValue,
+  validateParameters,
+  type ParameterIssue,
+  type ParameterSchema,
+  type ParameterUnit,
+  type PrimitiveDefinition,
+  type PrimitiveIcon,
+  type SpawnPrimitiveOptions,
+  type TessellationQuality,
+  type UnitDisplay,
+} from './primitives.js';
 
 export {
   IDENTITY_MATRIX,

@@ -129,6 +129,7 @@ Run with `npm test`.
 | `test/serialize.test.ts`        | round trip, validation failures, the migration machinery             |
 | `test/undo-fuzz.test.ts`        | ~3,800 random commands; undo and redo checked at every history depth |
 | `test/math.test.ts`             | quaternion and matrix conventions, TRS composition and its limits    |
+| `test/primitives.test.ts`       | parameter schemas, normalization, units, the no-hardcoded-list guard |
 
 The fuzz test also asserts _what it generated_ — that it produced cancelled gestures, composites and
 rejected illegal edits — because a generator that quietly stopped producing those would keep passing
@@ -136,8 +137,8 @@ while testing half of what it claims.
 
 ## Deliberately not here
 
-Primitive parameter schemas, units and defaults are
-[#7a](https://github.com/kruddage/carve/issues/7); `params` is an unvalidated bag of numbers until
-then, and the model does not care what is in it. Mesh construction is #7b, evaluation and caching
-are #6, and gizmo math beyond TRS composition belongs to
+Primitive parameter schemas, units and defaults live next door in
+[`docs/primitives.md`](primitives.md) — the model still treats `params` as an unvalidated bag of
+numbers and does not care what is in it. Mesh construction is `7b`, evaluation and caching are
+[#6](https://github.com/kruddage/carve/issues/6), and gizmo math beyond TRS composition belongs to
 [#8](https://github.com/kruddage/carve/issues/8).
