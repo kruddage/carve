@@ -66,6 +66,21 @@ export default defineConfig(({ mode }) => ({
     port: 4173,
     strictPort: true,
   },
+  /**
+   * The CSG kernel worker is a **module** worker, not a classic one.
+   *
+   * `manifold-3d` ships as ESM, uses top-level `await` to instantiate its WASM,
+   * and locates `manifold.wasm` relative to `import.meta.url`. None of those
+   * survive the IIFE format Vite would otherwise use for a worker in a
+   * production build, and the failure is invisible until you actually spawn one
+   * — which, on this project, means it would be found in a headset rather than
+   * on a laptop. Stated explicitly so it cannot regress silently.
+   *
+   * See src/kernel/spawn.ts, and docs/kernel.md.
+   */
+  worker: {
+    format: 'es',
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
@@ -75,5 +90,17 @@ export default defineConfig(({ mode }) => ({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
+    /**
+     * Benchmarks are `npm run bench`, never `npm test`.
+     *
+     * A timing threshold on a shared CI runner measures the runner's
+     * neighbours as much as the code, and a check that fails a PR for that
+     * reason gets disabled within a week. The machine-independent half of the
+     * same claim — how many subtrees an edit rebuilds — is asserted by
+     * test/kernel-cache.test.ts and does run in CI. See docs/perf.md.
+     */
+    benchmark: {
+      include: ['test/**/*.bench.ts'],
+    },
   },
 }));
