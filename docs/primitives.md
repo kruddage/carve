@@ -6,9 +6,10 @@ menu ([#12](https://github.com/kruddage/carve/issues/12)) both enumerate.
 
 This is the `7a` half of [#7](https://github.com/kruddage/carve/issues/7) — schemas, units,
 defaults, validation, registry. Mesh construction, tessellation into triangles and 3D preview
-thumbnails are `7b`, and they land after the kernel in
+thumbnails are `7b`, and they landed after the kernel in
 [#6](https://github.com/kruddage/carve/issues/6), because a mesh builder with no boolean to feed
-cannot be shown to be correct.
+cannot be shown to be correct. They live in `src/kernel/`: `solids.ts` for the construction and
+`preview.ts` for the thumbnails.
 
 ## Why it is not in `nodes.ts`
 
@@ -103,7 +104,13 @@ does not change density when reopened. Each parameter's own minimum still applie
 `PrimitiveIcon` is a viewBox plus a list of SVG path `d` strings — data, not markup, because
 `src/core/` is headless and may not touch the DOM. Enough for the desktop palette to build an
 `<svg>` and for the wrist menu to work from the same outline, without either inventing its own
-glyph. The 3D preview mesh is `7b`.
+glyph.
+
+The 3D version is `buildPreview` in `src/kernel/preview.ts`: the same solid the document would get,
+at `draft` density and framed to a unit box, for a menu that wants a shape that turns rather than a
+flat mark. It lives in the kernel because it is mesh work — see
+[`docs/kernel.md`](./kernel.md#previews-the-other-kind-of-work). Nothing here has to know about it;
+a preview is requested by `kind`, and every default it applies comes back out of this registry.
 
 ## What the tests hold down
 

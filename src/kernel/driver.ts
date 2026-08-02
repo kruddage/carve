@@ -52,23 +52,35 @@
  * `withContext` is the escalation and it fits behind this same interface.
  */
 
-import type { NodeBundle } from '../core/index.js';
+import type {
+  EvaluateRequest,
+  EvaluationStats,
+  KernelWarning,
+  MeshPayload,
+  PreviewRequest,
+  PrimitivePreview,
+} from './protocol.js';
 
-import type { EvaluationStats, KernelWarning, MeshPayload } from './protocol.js';
+/**
+ * One unit of work, which is the request itself.
+ *
+ * Nothing here unwraps it: scheduling needs `id` and `channel`, both of which
+ * every request already carries, and what the work *is* only matters to
+ * `worker.ts`'s `run`. So a thumbnail and a document evaluation queue, run and
+ * supersede by exactly the same rules, and adding a third kind of work is a
+ * change to the protocol rather than to the scheduler.
+ */
+export type Job = EvaluateRequest | PreviewRequest;
 
-/** One unit of work, as the driver holds it. */
-export interface Job {
-  readonly id: number;
-  readonly channel: string;
-  readonly bundle: NodeBundle;
-  readonly creaseAngle?: number;
-}
-
-export interface JobOutcome {
-  readonly mesh: MeshPayload;
-  readonly warnings: readonly KernelWarning[];
-  readonly stats: EvaluationStats;
-}
+/** What `run` produced, tagged so the caller knows which message to post back. */
+export type JobOutcome =
+  | {
+      readonly type: 'evaluate';
+      readonly mesh: MeshPayload;
+      readonly warnings: readonly KernelWarning[];
+      readonly stats: EvaluationStats;
+    }
+  | { readonly type: 'preview'; readonly preview: PrimitivePreview };
 
 export interface DriverHandlers {
   /** Run one job. Synchronous — this is the worker thread and blocking is the point. */

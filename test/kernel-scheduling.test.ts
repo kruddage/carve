@@ -57,12 +57,13 @@ function bundle(rootId: string): NodeBundle {
   return { rootId, nodes: [node] };
 }
 
+/** A job is its own request — see the note on `Job` in `driver.ts`. */
 function job(id: number, channel = DEFAULT_CHANNEL): Job {
-  return { id, channel, bundle: bundle(`n${id}`) };
+  return { type: 'evaluate', id, channel, bundle: bundle(`n${id}`) };
 }
 
 function outcome(): JobOutcome {
-  return { mesh: emptyMesh(), warnings: [], stats: STATS };
+  return { type: 'evaluate', mesh: emptyMesh(), warnings: [], stats: STATS };
 }
 
 // --- The driver -------------------------------------------------------------
@@ -472,9 +473,7 @@ describe('the two halves together', () => {
     // this is the real client talking to the real scheduler with no worker.
     const pump = (): void => {
       for (const request of port.sent.splice(0)) {
-        if (request.type === 'evaluate') {
-          driver.submit({ id: request.id, channel: request.channel, bundle: request.bundle });
-        }
+        if (request.type === 'evaluate') driver.submit(request);
       }
     };
 

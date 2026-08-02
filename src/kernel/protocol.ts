@@ -43,7 +43,7 @@
  * cost this whole design exists to avoid.
  */
 
-import type { NodeBundle, NodeId } from '../core/index.js';
+import type { NodeBundle, NodeId, PrimitiveKind, TessellationQuality } from '../core/index.js';
 
 /**
  * The default crease threshold, in degrees.
@@ -122,6 +122,74 @@ export interface EvaluateRequest {
   readonly creaseAngle?: number;
 }
 
+/**
+ * What to build a preview of.
+ *
+ * A preview is a lone primitive, framed to a fixed size, for a palette entry or
+ * a wrist-menu cell (#9, #12). It deliberately does not travel as a
+ * `NodeBundle`: there is no tree, no boolean, and nothing to place, and going
+ * through the document model would mean minting a node id for a shape nobody
+ * has spawned yet.
+ *
+ * Every field but `kind` is optional and every default is stated in
+ * `preview.ts`, so a caller that just wants "the torus, thumbnail-sized" sends
+ * `{ kind: 'torus' }`.
+ */
+export interface PreviewSpec {
+  readonly kind: PrimitiveKind;
+  /** Partial overrides. Anything omitted comes from the registry defaults. */
+  readonly params?: Readonly<Record<string, number>>;
+  /** Defaults to `PREVIEW_QUALITY` — thumbnails do not need viewport density. */
+  readonly quality?: TessellationQuality;
+  /**
+   * Target length of the longest bounding-box edge, in metres. Defaults to
+   * `PREVIEW_FIT_SIZE`; zero or less leaves the solid at its true size.
+   */
+  readonly fit?: number;
+  /** Degrees. Defaults to `DEFAULT_CREASE_ANGLE`, as evaluation does. */
+  readonly creaseAngle?: number;
+}
+
+/**
+ * Build a preview mesh for one primitive.
+ *
+ * Shares the request queue with evaluation, and therefore its channel rule: a
+ * menu that re-requests a preview while dragging a parameter supersedes its own
+ * older request rather than queueing behind it. Send it on a channel of its
+ * own, so a thumbnail never displaces the viewport's evaluation.
+ */
+export interface PreviewRequest extends PreviewSpec {
+  readonly type: 'preview';
+  readonly id: number;
+  readonly channel: string;
+}
+
+/** An axis-aligned box, `[x, y, z]` per corner. */
+export interface PreviewBounds {
+  readonly min: readonly [number, number, number];
+  readonly max: readonly [number, number, number];
+}
+
+/** One primitive, meshed and framed. */
+export interface PrimitivePreview {
+  readonly kind: PrimitiveKind;
+  /**
+   * The normalized parameters the mesh was actually built from — quality tier
+   * applied, values clamped. What a caller should show next to the thumbnail,
+   * and what makes the preview reproducible.
+   */
+  readonly params: Readonly<Record<string, number>>;
+  readonly mesh: MeshPayload;
+  /**
+   * The solid's bounds *before* framing, in metres. A caller labelling a
+   * palette entry "60 mm" needs the true size, which the framed mesh no longer
+   * carries.
+   */
+  readonly bounds: PreviewBounds;
+  /** The uniform factor applied to reach `fit`. 1 when framing was off. */
+  readonly scale: number;
+}
+
 /** Drop anything queued for `channel`. Sent on `transformCancel` and on teardown. */
 export interface CancelRequest {
   readonly type: 'cancel';
@@ -133,7 +201,7 @@ export interface ResetRequest {
   readonly type: 'reset';
 }
 
-export type KernelRequest = EvaluateRequest | CancelRequest | ResetRequest;
+export type KernelRequest = EvaluateRequest | PreviewRequest | CancelRequest | ResetRequest;
 
 export interface EvaluateResult {
   readonly type: 'result';
@@ -142,6 +210,21 @@ export interface EvaluateResult {
   readonly mesh: MeshPayload;
   readonly stats: EvaluationStats;
   readonly warnings: readonly KernelWarning[];
+}
+
+/**
+ * A preview mesh.
+ *
+ * Its own message rather than a `result` with a flag on it, because the two are
+ * consumed by different code: a `result` is the document and goes to every mesh
+ * listener, and a preview belongs to whichever menu asked for it. Sharing the
+ * message type is how a wrist-menu thumbnail ends up drawn as the scene.
+ */
+export interface PreviewResult {
+  readonly type: 'preview-result';
+  readonly id: number;
+  readonly channel: string;
+  readonly preview: PrimitivePreview;
 }
 
 /**
@@ -168,7 +251,7 @@ export interface KernelFailure {
   readonly message: string;
 }
 
-export type KernelResponse = EvaluateResult | SupersededNotice | KernelFailure;
+export type KernelResponse = EvaluateResult | PreviewResult | SupersededNotice | KernelFailure;
 
 /** An empty mesh. What an evaluation with nothing in it produces. */
 export function emptyMesh(): MeshPayload {
@@ -183,9 +266,19 @@ export function emptyMesh(): MeshPayload {
 
 /** The buffers to hand `postMessage` as transferables for a response. */
 export function transferablesOf(response: KernelResponse): ArrayBuffer[] {
-  if (response.type !== 'result') return [];
-  return [
-    response.mesh.vertices.buffer as ArrayBuffer,
-    response.mesh.indices.buffer as ArrayBuffer,
-  ];
+  const mesh = meshOf(response);
+  if (!mesh) return [];
+  return [mesh.vertices.buffer as ArrayBuffer, mesh.indices.buffer as ArrayBuffer];
+}
+
+/** The mesh a response carries, if it carries one. */
+function meshOf(response: KernelResponse): MeshPayload | null {
+  switch (response.type) {
+    case 'result':
+      return response.mesh;
+    case 'preview-result':
+      return response.preview.mesh;
+    default:
+      return null;
+  }
 }

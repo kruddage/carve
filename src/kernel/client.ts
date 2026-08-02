@@ -50,7 +50,7 @@
  * that knows how to build a real one.
  */
 
-import type { NodeBundle, NodeId } from '../core/index.js';
+import type { NodeBundle, NodeId, PrimitiveKind } from '../core/index.js';
 
 import {
   type EvaluationStats,
@@ -58,6 +58,8 @@ import {
   type KernelResponse,
   type KernelWarning,
   type MeshPayload,
+  type PreviewSpec,
+  type PrimitivePreview,
 } from './protocol.js';
 
 /**
@@ -76,6 +78,23 @@ export interface KernelPort {
 /** The default channel — one viewport, one preview, one document. */
 export const DEFAULT_CHANNEL = 'main';
 
+/** The channel prefix thumbnails use, so a palette never displaces the viewport. */
+export const PREVIEW_CHANNEL = 'preview';
+
+/**
+ * The default channel for a preview of `kind` — one per primitive.
+ *
+ * Not one channel for all thumbnails, which is the mistake this exists to
+ * prevent: a menu asks for six previews in one pass, and on a single channel
+ * five of them would supersede each other before running and come back `null`.
+ * Per kind, the supersession that remains is the one that is wanted — dragging
+ * a parameter re-requests that shape's thumbnail and abandons its own older
+ * request, while its five neighbours are untouched.
+ */
+export function previewChannel(kind: PrimitiveKind): string {
+  return `${PREVIEW_CHANNEL}:${kind}`;
+}
+
 export interface EvaluatedMesh {
   readonly channel: string;
   readonly requestId: number;
@@ -91,15 +110,41 @@ export interface RequestOptions {
   readonly creaseAngle?: number;
 }
 
+/** Where to send a preview request. Everything else about it is in the spec. */
+export interface PreviewRequestOptions {
+  /**
+   * Defaults to `previewChannel(kind)`, which is deliberately not the
+   * viewport's: a palette rebuilding its thumbnails must not displace the
+   * evaluation the scene is waiting for, and the two have no reason to
+   * supersede each other.
+   */
+  readonly channel?: string;
+}
+
 /** Notified whenever a fresher mesh arrives. The renderer's subscription. */
 export type MeshListener = (mesh: EvaluatedMesh) => void;
 
-interface Inflight {
-  readonly channel: string;
-  readonly rootId: NodeId;
-  readonly settle: (mesh: EvaluatedMesh | null) => void;
-  readonly fail: (error: Error) => void;
-}
+/**
+ * An outstanding request, tagged by what it asked for.
+ *
+ * The tag is what keeps a preview out of the renderer's subscription: both
+ * kinds of result run the same staleness gate, and only an evaluation reaches
+ * the mesh listeners.
+ */
+type Inflight =
+  | {
+      readonly type: 'evaluate';
+      readonly channel: string;
+      readonly rootId: NodeId;
+      readonly settle: (mesh: EvaluatedMesh | null) => void;
+      readonly fail: (error: Error) => void;
+    }
+  | {
+      readonly type: 'preview';
+      readonly channel: string;
+      readonly settle: (preview: PrimitivePreview | null) => void;
+      readonly fail: (error: Error) => void;
+    };
 
 export class KernelClient {
   readonly #port: KernelPort;
@@ -135,6 +180,7 @@ export class KernelClient {
 
     return new Promise<EvaluatedMesh | null>((resolve, reject) => {
       this.#inflight.set(id, {
+        type: 'evaluate',
         channel,
         rootId: bundle.rootId,
         settle: resolve,
@@ -147,6 +193,35 @@ export class KernelClient {
         bundle,
         ...(options.creaseAngle === undefined ? {} : { creaseAngle: options.creaseAngle }),
       });
+    });
+  }
+
+  /**
+   * Ask for a thumbnail of one primitive.
+   *
+   * The palette's and the wrist menu's path (#9, #12): a mesh for a shape that
+   * is not in the document, framed to a fixed size so a cell can draw it
+   * without measuring it first. Resolves to `null` on the same terms as
+   * `request` — a newer preview on the same channel displaced this one.
+   *
+   * Preview results never reach the mesh listeners. A subscriber is the
+   * renderer drawing the document, and handing it a thumbnail would put a
+   * palette entry on screen as though it were the part.
+   */
+  requestPreview(
+    spec: PreviewSpec,
+    options: PreviewRequestOptions = {},
+  ): Promise<PrimitivePreview | null> {
+    if (this.#terminated) {
+      return Promise.reject(new Error('This kernel client has been terminated'));
+    }
+
+    const id = this.#nextId++;
+    const channel = options.channel ?? previewChannel(spec.kind);
+
+    return new Promise<PrimitivePreview | null>((resolve, reject) => {
+      this.#inflight.set(id, { type: 'preview', channel, settle: resolve, fail: reject });
+      this.#port.postMessage({ type: 'preview', id, channel, ...spec });
     });
   }
 
@@ -215,19 +290,29 @@ export class KernelClient {
     }
     this.#applied.set(response.channel, response.id);
 
+    if (response.type === 'preview-result') {
+      // The type check is not defensive noise: a `preview-result` answering an
+      // `evaluate` would be a worker bug, and settling `null` keeps a caller
+      // from waiting forever on a promise nothing else will resolve.
+      if (inflight?.type === 'preview') inflight.settle(response.preview);
+      else inflight?.settle(null);
+      return;
+    }
+
     const mesh: EvaluatedMesh = {
       channel: response.channel,
       requestId: response.id,
       // `rootId` is not on the wire — it is the caller's own bundle root, and
       // round-tripping it would let a worker bug rename what the main thread
       // thinks it asked about.
-      rootId: inflight?.rootId ?? '',
+      rootId: inflight?.type === 'evaluate' ? inflight.rootId : '',
       mesh: response.mesh,
       warnings: response.warnings,
       stats: response.stats,
     };
 
-    inflight?.settle(mesh);
+    if (inflight?.type === 'evaluate') inflight.settle(mesh);
+    else inflight?.settle(null);
     for (const listener of this.#listeners) listener(mesh);
   }
 }
