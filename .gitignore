@@ -1,0 +1,19 @@
+node_modules/
+dist/
+_site/
+coverage/
+*.local
+.DS_Store
+.vite/
+.eslintcache
+
+# Throwaway modules written by test/import-boundary.test.ts; removed in a
+# `finally`, ignored here in case a run is killed mid-test.
+**/__boundary_probe__*.ts
+
+# Certificates minted by @vitejs/plugin-basic-ssl for `npm run dev:https`
+.cert/
+*.pem
+
+# Claude Code agent worktrees: full checkouts of this repo nested inside it.
+.claude/

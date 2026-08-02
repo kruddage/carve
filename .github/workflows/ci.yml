@@ -1,0 +1,87 @@
+name: CI
+
+# Typecheck, lint, test, build on every push and PR.
+#
+# NOT BROKEN IF IT LOOKS EMPTY: there is no package.json in the repo yet — the
+# scaffold arrives with #3. Every npm step below is guarded on package.json
+# existing, so today this workflow is a deliberate green no-op, and the moment
+# the scaffold lands it starts running for real with no edit to this file. If a
+# step is being skipped that you expect to run, the answer is almost always a
+# missing script in package.json, not a missing step here.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A PR that gets three pushes in a minute does not need three full runs; keep
+# only the newest per ref. Safe to cancel here in a way it is not in pages.yml,
+# because nothing outside the runner is affected.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Single source of truth for the guard: every later step reads these
+      # outputs rather than re-testing for the files itself.
+      - id: probe
+        name: Detect the npm scaffold
+        run: |
+          if [ -f package.json ]; then
+            echo "scaffold=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "scaffold=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No package.json yet (arrives with #3) — skipping npm steps."
+          fi
+          if [ -f package-lock.json ]; then
+            echo "lockfile=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "lockfile=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.probe.outputs.scaffold == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          # setup-node's cache errors out when it cannot find a lockfile, so
+          # only ask for it once one exists.
+          cache: ${{ steps.probe.outputs.lockfile == 'true' && 'npm' || '' }}
+
+      # npm ci is the reproducible install and needs a lockfile; npm install is
+      # the fallback for the window between package.json and the first commit
+      # of package-lock.json.
+      - if: steps.probe.outputs.scaffold == 'true'
+        name: Install
+        run: |
+          if [ "${{ steps.probe.outputs.lockfile }}" = "true" ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      # --if-present so this file does not have to be edited again as #3 adds
+      # the scripts one at a time. A script that does not exist yet is a pass,
+      # a script that exists and fails is a failure.
+      - if: steps.probe.outputs.scaffold == 'true'
+        name: Typecheck
+        run: npm run --if-present typecheck
+
+      - if: steps.probe.outputs.scaffold == 'true'
+        name: Lint
+        run: npm run --if-present lint
+
+      - if: steps.probe.outputs.scaffold == 'true'
+        name: Test
+        run: npm run --if-present test
+
+      - if: steps.probe.outputs.scaffold == 'true'
+        name: Build
+        run: npm run --if-present build
