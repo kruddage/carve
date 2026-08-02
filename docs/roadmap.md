@@ -49,7 +49,7 @@ graph TD
     end
 
     subgraph M2["M2 · The web app"]
-        I4["4 · Renderer layer (WebGL2)"]
+        I4["4 · Renderer layer (WebGL2) ✅"]
         I8["8 · Input abstraction"]
         I9["9 · Desktop UI"]
         I13["13 · Hard-surface shading"]
@@ -111,7 +111,7 @@ graph TD
 | ------------------------------------------------------------------------ | ------------- | ------ | ------------ |
 | [#2 Capability probe](https://github.com/kruddage/carve/issues/2)         | —             |        | 10 (soft)    |
 | [#3 Scaffold + dev loop](https://github.com/kruddage/carve/issues/3) ✅   | —             | 16a    | 4, 5, 7a, 16b |
-| [#4 Renderer layer](https://github.com/kruddage/carve/issues/4)           | 3             |        | 8, 10, 13    |
+| [#4 Renderer layer](https://github.com/kruddage/carve/issues/4) ✅        | 3             |        | 8, 10, 13    |
 | [#5 Document model](https://github.com/kruddage/carve/issues/5) ✅        | 3             |        | 6, 8, 14a    |
 | [#6 CSG kernel](https://github.com/kruddage/carve/issues/6) ✅            | 5, 7a         |        | 7b, 9, 11, 13, 14a |
 | [7a Primitive schemas](https://github.com/kruddage/carve/issues/25) ✅    | 3             |        | 6            |
@@ -127,18 +127,20 @@ graph TD
 | [#15 Perf budget](https://github.com/kruddage/carve/issues/15)            | 10            | 11, 13 | —            |
 | [#16 CI + deploy](https://github.com/kruddage/carve/issues/16)            | — (16a), 3 (16b) |     | everything   |
 
-**Critical path:** 3 → 5 → 6 → 7b → 9, with 4 → 8 → 9 joining it. Its headless half is complete:
-#6 was the single highest-fanout node — five issues waited on it — and `7b` behind it was the last
-of M1. What remains on the path to a desktop app is the renderer and the input layer above it.
+**Critical path:** 3 → 5 → 6 → 7b → 9, with 4 → 8 → 9 joining it. Its headless half is complete, and
+so is the renderer: #6 was the single highest-fanout node — five issues waited on it — `7b` behind it
+was the last of M1, and #4 has now landed too. What remains on the path to a desktop app is the input
+layer and the UI above it.
 
-**Startable right now:** [#4](https://github.com/kruddage/carve/issues/4) and
-[#14a](https://github.com/kruddage/carve/issues/14), in parallel and by different people. #3, #5,
-`7a`, `16a`, #6 and `7b` have landed. #8 needs #4 and #9 needs #8, so **#4 is now the one thing
-standing between here and the desktop app** — everything else in M2 is behind it or behind work that
-is already done.
+**Startable right now:** [#8](https://github.com/kruddage/carve/issues/8),
+[#10](https://github.com/kruddage/carve/issues/10), [#13](https://github.com/kruddage/carve/issues/13)
+and [#14a](https://github.com/kruddage/carve/issues/14), in parallel and by different people. #3, #5,
+`7a`, `16a`, #6, `7b` and #4 have landed. #9 needs #8, so **#8 is now the one thing standing between
+here and the desktop app** — everything else left in M2 is behind it or behind work that is already
+done.
 
 The kernel's design notes are [`docs/kernel.md`](./kernel.md) and its measured timings are
-[`docs/perf.md`](./perf.md).
+[`docs/perf.md`](./perf.md). The renderer's design notes are [`docs/render.md`](./render.md).
 
 ## Findings from reviewing the issues against each other
 
@@ -199,7 +201,7 @@ the coming-soon page. Each milestone changes what is there.
 | ------------------------ | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **M0 · Ground truth** ✅ | 3, 16a            | Green CI on every PR and the probe live at `/probe/`. Complete.                                                                                                                                                                                              |
 | **M1 · Headless core** ✅ | 5 ✅, 7a ✅, 6 ✅, 7b ✅ | No pixels. Progress is the green CI check, the undo/redo fuzz test, and the kernel timings in `docs/perf.md` — now populated: a single-leaf edit on the ~20-primitive target tree re-evaluates in 6.7ms against a 16ms budget. The milestone where it looks like nothing is happening and the most is. Complete. |
-| **M2 · The web app**     | 4, 8, 9, 13, 14a  | `/` stops being the coming-soon page and becomes the modeler. Booleans, outliner, gizmos, machined-looking solids, save and export — in a browser tab, on a laptop, no headset involved. **This is a shippable product, not a checkpoint.**                    |
+| **M2 · The web app**     | 4 ✅, 8, 9, 13, 14a  | `/` stops being the coming-soon page and becomes the modeler. Booleans, outliner, gizmos, machined-looking solids, save and export — in a browser tab, on a laptop, no headset involved. **This is a shippable product, not a checkpoint.**                    |
 | **M3 · In the headset**  | 10, 11, 12, 14b   | Same URL, now with an Enter XR button that works. Pinch-grab a solid, spawn primitives from the wrist menu, build a part without touching a keyboard.                                                                                                          |
 | **M4 · Shippable**       | 15, 16b           | Both done-whens from #1 end to end: the web round trip, and the headset one at 72fps.                                                                                                                                                                        |
 
