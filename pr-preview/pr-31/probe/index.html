@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carve capability probe</title>
+<meta name="description" content="Measures what WebGPU and WebXR features this device actually supports, inside and outside an immersive session.">
+<style>
+  /* Sized to be read through a Quest 3 headset at arm's length: large type,
+     high contrast, generous line height, nothing subtle. Do not "tidy" these
+     font sizes down — on a headset display 16px is unreadable. */
+  :root {
+    --bg:      #0a0d12;
+    --panel:   #131922;
+    --panel-2: #1a222e;
+    --line:    #2c3947;
+    --text:    #eef3f8;
+    --dim:     #9db0c4;
+    --pass:    #3ddc84;
+    --fail:    #ff6b6b;
+    --warn:    #ffc93c;
+    --absent:  #8fa6bd;
+    --info:    #7fbfff;
+    --accent:  #6ee7ff;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    margin: 0;
+    padding: 2rem 1.5rem 6rem;
+    background: var(--bg);
+    color: var(--text);
+    font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 22px;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 1400px; margin: 0 auto; }
+  h1 { font-size: 2.4rem; line-height: 1.15; margin: 0 0 .4em; letter-spacing: -0.01em; }
+  h2 { font-size: 1.5rem; margin: 2rem 0 .6rem; color: var(--accent); }
+  p  { margin: 0 0 1rem; max-width: 60ch; }
+  .sub { color: var(--dim); font-size: 1.05rem; }
+  code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+  /* Controls: finger/controller-sized targets, not mouse-sized. */
+  .controls { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1.5rem 0 2rem; }
+  button {
+    font: inherit;
+    font-weight: 700;
+    min-height: 4rem;
+    padding: 1rem 1.6rem;
+    border-radius: 12px;
+    border: 3px solid var(--line);
+    background: var(--panel-2);
+    color: var(--text);
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:focus-visible { outline: 4px solid var(--accent); outline-offset: 3px; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: #0e3a4a; border-color: var(--accent); color: #ffffff; }
+
+  #status {
+    margin: 0 0 1.5rem;
+    padding: 1rem 1.2rem;
+    border-left: 8px solid var(--accent);
+    background: var(--panel);
+    font-size: 1.1rem;
+    max-width: none;
+  }
+  #status.busy { border-left-color: var(--warn); }
+  #status.bad  { border-left-color: var(--fail); }
+
+  /* Wide content scrolls inside its own box; the page never scrolls sideways. */
+  .table-scroll { overflow-x: auto; border: 2px solid var(--line); border-radius: 12px; }
+  table { border-collapse: collapse; width: 100%; min-width: 900px; }
+  th, td { text-align: left; padding: .85rem 1rem; border-bottom: 2px solid var(--line); vertical-align: top; }
+  thead th { background: var(--panel-2); font-size: .95rem; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); }
+  tr.group td {
+    background: var(--panel-2);
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: .02em;
+    color: var(--accent);
+    border-bottom: 3px solid var(--line);
+  }
+  td.label { width: 34%; font-weight: 600; }
+  td.value { color: var(--dim); word-break: break-word; }
+  td.value .val { color: var(--text); }
+  td.status { width: 12rem; white-space: nowrap; }
+
+  /* Status is encoded three ways — glyph, word, and colour — so it survives
+     being read on a low-colour-fidelity panel or by a colour-blind reader. */
+  .badge {
+    display: inline-block;
+    font-weight: 800;
+    font-size: .95rem;
+    letter-spacing: .06em;
+    padding: .3rem .7rem;
+    border-radius: 8px;
+    border: 3px solid currentColor;
+  }
+  .badge .g { font-size: 1.1em; margin-right: .35em; }
+  .s-pass   { color: var(--pass);   background: rgba(61,220,132,.10); }
+  .s-fail   { color: var(--fail);   background: rgba(255,107,107,.10); }
+  .s-error  { color: var(--warn);   background: rgba(255,201,60,.10); }
+  .s-absent { color: var(--absent); background: rgba(143,166,189,.08); border-style: dashed; }
+  .s-info   { color: var(--info);   background: rgba(127,191,255,.08); border-style: dotted; }
+  .s-skip   { color: var(--absent); background: transparent; border-style: dashed; opacity: .8; }
+  .s-pend   { color: var(--dim);    background: transparent; border-style: dotted; opacity: .8; }
+
+  details { margin-top: .5rem; }
+  summary { cursor: pointer; color: var(--accent); font-size: .95rem; font-weight: 600; }
+  details pre {
+    margin: .6rem 0 0;
+    padding: .8rem;
+    background: #070a0e;
+    border: 2px solid var(--line);
+    border-radius: 8px;
+    font-size: .85rem;
+    line-height: 1.4;
+    max-height: 22rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  #mdPanel { margin-top: 2rem; }
+  #mdOut {
+    width: 100%;
+    min-height: 24rem;
+    padding: 1rem;
+    background: #070a0e;
+    color: var(--text);
+    border: 2px solid var(--line);
+    border-radius: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .85rem;
+    line-height: 1.45;
+    white-space: pre;
+    overflow: auto;
+  }
+  .hidden { display: none; }
+  .legend { display: flex; flex-wrap: wrap; gap: .75rem; margin: 1rem 0 0; font-size: .9rem; }
+  footer { margin-top: 3rem; color: var(--dim); font-size: .95rem; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Carve capability probe</h1>
+  <p class="sub">
+    What this device actually supports — measured, not read off release notes.
+    The question that decides the renderer default is whether
+    <code>XRGPUBinding</code> works <em>inside</em> an immersive session.
+    Having <code>navigator.gpu</code> on this 2D page does not answer it.
+  </p>
+
+  <div id="status" role="status" aria-live="polite">Loading…</div>
+
+  <div class="controls">
+    <button id="btnXR" class="primary" disabled>Enter VR &amp; run in-session checks</button>
+    <button id="btnRerun">Re-run 2D checks</button>
+    <button id="btnCopy">Copy as markdown</button>
+    <button id="btnShow">Show markdown</button>
+  </div>
+
+  <div class="table-scroll">
+    <table id="results">
+      <thead>
+        <tr><th>Check</th><th>Result</th><th>Value</th></tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+
+  <div class="legend">
+    <span class="badge s-pass"><span class="g">&#10003;</span>PASS</span>
+    <span class="badge s-fail"><span class="g">&#10007;</span>FAIL</span>
+    <span class="badge s-absent"><span class="g">&#9675;</span>ABSENT</span>
+    <span class="badge s-error"><span class="g">&#9888;</span>THREW</span>
+    <span class="badge s-info"><span class="g">&#183;</span>INFO</span>
+    <span class="badge s-skip"><span class="g">&#8211;</span>SKIPPED</span>
+  </div>
+
+  <div id="mdPanel" class="hidden">
+    <h2>Markdown</h2>
+    <p class="sub">Paste into <code>docs/capability-matrix.md</code> or a GitHub issue comment.</p>
+    <textarea id="mdOut" readonly spellcheck="false"></textarea>
+  </div>
+
+  <footer>
+    <p>
+      Static page, no build step and no dependencies, so it keeps working when the app does not.
+      Served from <code>/carve/probe/</code>. Re-run after every Quest Browser update — see
+      <code>docs/capability-matrix.md</code>.
+    </p>
+  </footer>
+</div>
+<script src="./probe.js" defer></script>
+</body>
+</html>
