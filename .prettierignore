@@ -1,0 +1,13 @@
+dist/
+coverage/
+node_modules/
+package-lock.json
+CHANGELOG.md
+
+# Hand-authored and owned elsewhere: reflowing its tables would bury the next
+# real edit in whitespace noise.
+docs/roadmap.md
+
+# Static passthrough — shipped byte-for-byte, so it is not ours to reformat.
+public/
+probe/
