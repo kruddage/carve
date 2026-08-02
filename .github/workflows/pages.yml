@@ -1,0 +1,71 @@
+name: Pages
+
+# WebXR needs a secure context, so the only way to try a change on a headset is
+# to serve it over HTTPS. Pages gives us that for free on every push to main,
+# which turns "test on device" from a tunnel-and-cert chore into opening a
+# bookmark. Uses the Actions publishing flow rather than a gh-pages branch, so
+# there is no build output committed to the repo.
+#
+# Requires Settings -> Pages -> Source = "GitHub Actions". See docs/deploy.md.
+
+on:
+  push:
+    branches: [main]
+  # Manual runs are useful for re-publishing after flipping the Pages setting,
+  # without having to push an empty commit.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time, and never cancel one midway: a cancelled deploy can
+# leave the live site on a half-published artifact.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/configure-pages@v5
+
+      # === The one step that changes when the app arrives ===
+      # Today there is no build: the site is the static repo root (the
+      # coming-soon index.html). Everything published is copied into _site so
+      # the artifact contains the site and nothing else — no .git, no docs, no
+      # LICENSE, no tooling config.
+      #
+      # When #3 lands Vite, this whole step is replaced by the usual
+      # setup-node + npm ci + npm run build, and the upload path below stays
+      # pointed at a directory — just swap _site for dist. Nothing else in this
+      # workflow needs to change.
+      # Leading slashes anchor the rsync patterns to the repo root, so '/docs'
+      # drops our docs directory without also dropping a future site path that
+      # happens to be called docs.
+      - name: Assemble the site directory
+        run: |
+          mkdir -p _site
+          rsync -a --delete \
+            --exclude '/.*' \
+            --exclude '/_site' \
+            --exclude '/docs' \
+            --exclude '/LICENSE' \
+            --exclude '/CHANGELOG.md' \
+            --exclude '/release-please-config.json' \
+            ./ _site/
+          ls -la _site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
