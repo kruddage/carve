@@ -25,8 +25,10 @@
  *
  *   `runtime.ts`   loading manifold-3d, and why it is the single-threaded build
  *   `solids.ts`    primitive parameters → manifold solids, and the Z-up→Y-up seam
+ *   `mesh.ts`      a solid's surface as the buffers #4 uploads
  *   `hash.ts`      the subtree fingerprint the whole cache rests on
  *   `evaluate.ts`  the tree walk, the cache, and WASM memory ownership
+ *   `preview.ts`   thumbnail geometry, framed to a fixed size (#7b)
  *   `driver.ts`    which request runs and which is abandoned
  *   `client.ts`    the main-thread handle, and the never-apply-a-stale-result rule
  *   `protocol.ts`  the wire between the two
@@ -87,9 +89,18 @@ export {
   type KernelWarning,
   type KernelWarningCode,
   type MeshPayload,
+  type PreviewBounds,
+  type PreviewRequest,
+  type PreviewResult,
+  type PreviewSpec,
+  type PrimitivePreview,
   type ResetRequest,
   type SupersededNotice,
 } from './protocol.js';
+
+export { meshFromSolid } from './mesh.js';
+
+export { PREVIEW_FIT_SIZE, PREVIEW_QUALITY, buildPreview } from './preview.js';
 
 export { nodeLookup, subtreeHash, type NodeLookup } from './hash.js';
 
@@ -104,8 +115,11 @@ export { KernelDriver, type DriverHandlers, type Job, type JobOutcome } from './
 export {
   DEFAULT_CHANNEL,
   KernelClient,
+  PREVIEW_CHANNEL,
+  previewChannel,
   type EvaluatedMesh,
   type KernelPort,
   type MeshListener,
+  type PreviewRequestOptions,
   type RequestOptions,
 } from './client.js';

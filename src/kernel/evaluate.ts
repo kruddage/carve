@@ -79,10 +79,9 @@ import {
 } from '../core/index.js';
 
 import { nodeLookup, subtreeHash, type NodeLookup } from './hash.js';
+import { meshFromSolid } from './mesh.js';
 import {
   DEFAULT_CREASE_ANGLE,
-  NORMAL_OFFSET,
-  POSITION_OFFSET,
   VERTEX_STRIDE,
   emptyMesh,
   type EvaluationStats,
@@ -451,42 +450,16 @@ export class Evaluator {
   /**
    * Root solid → interleaved buffers, with sharp-edge normals.
    *
-   * Normals are computed here and not per subtree because they are a property
-   * of the visible surface: a face that an ancestor boolean is about to cut
-   * away does not need one, and an intermediate's normals would be thrown away
-   * by the next operation anyway.
-   *
-   * `calculateNormals(0, creaseAngle)` is `manifold-3d`'s own crease-threshold
-   * pass, which splits a vertex into one per adjacent face wherever the dihedral
-   * angle exceeds the threshold and shares it everywhere else. That is exactly
-   * the hard-surface requirement — machined edges stay crisp, tessellated
-   * cylinders stay round — and doing it inside WASM over the whole mesh is an
-   * order of magnitude quicker than the equivalent walk in JS, on the thread
-   * where the time is cheapest to spend.
-   *
-   * The derived solid is deleted immediately: it is keyed by crease angle as
-   * well as by geometry, so caching it would double the cache's memory for a
-   * pass that costs a fraction of a boolean.
+   * The extraction itself is `mesh.ts`, shared with the thumbnail builder in
+   * `preview.ts` so that a wrist-menu preview and the viewport cannot disagree
+   * about where an edge is sharp. What is decided *here* is only that it
+   * happens once, at the root: normals are a property of the visible surface,
+   * so a face that an ancestor boolean is about to cut away does not need one,
+   * and an intermediate's normals would be thrown away by the next operation
+   * anyway.
    */
   #toMesh(solid: Solid, creaseAngle: number): MeshPayload {
-    const withNormals = solid.calculateNormals(0, creaseAngle);
-    try {
-      const mesh = withNormals.getMesh();
-      if (mesh.numProp !== VERTEX_STRIDE) {
-        // Unreachable unless `calculateNormals` changes what it writes, which
-        // would silently mis-key every attribute offset downstream.
-        throw new Error(`Expected ${VERTEX_STRIDE} properties per vertex, got ${mesh.numProp}`);
-      }
-      return {
-        vertices: mesh.vertProperties,
-        indices: mesh.triVerts,
-        stride: VERTEX_STRIDE,
-        positionOffset: POSITION_OFFSET,
-        normalOffset: NORMAL_OFFSET,
-      };
-    } finally {
-      withNormals.delete();
-    }
+    return meshFromSolid(solid, creaseAngle);
   }
 
   /**

@@ -23,8 +23,11 @@
  * design exists to avoid.
  */
 
-import { KernelDriver, type Job } from './driver.js';
+import type { ManifoldToplevel } from 'manifold-3d';
+
+import { KernelDriver, type Job, type JobOutcome } from './driver.js';
 import { Evaluator } from './evaluate.js';
+import { buildPreview } from './preview.js';
 import { transferablesOf, type KernelRequest, type KernelResponse } from './protocol.js';
 import { loadManifold } from './runtime.js';
 
@@ -40,18 +43,40 @@ const scope = self as unknown as DedicatedWorkerGlobalScope;
 
 /** Set once WASM is up. `run` is unreachable before then — see `ready` below. */
 let evaluator: Evaluator | null = null;
+/**
+ * The toolkit itself, for the work that has no tree to walk.
+ *
+ * A thumbnail is one primitive with no document around it, so `preview.ts`
+ * takes the toolkit directly rather than going through the evaluator — see the
+ * note there on why a preview is not an evaluation.
+ */
+let toolkit: ManifoldToplevel | null = null;
 
 const ready = loadManifold().then((api) => {
+  toolkit = api;
   evaluator = new Evaluator(api);
 });
 
 const driver = new KernelDriver({
   ready,
-  run: (job: Job) => {
+  run: (job: Job): JobOutcome => {
+    if (job.type === 'preview') {
+      if (!toolkit) throw new Error('The CSG kernel is not ready yet');
+      return { type: 'preview', preview: buildPreview(toolkit, job) };
+    }
     if (!evaluator) throw new Error('The CSG kernel is not ready yet');
-    return evaluator.evaluate(job.bundle, job.creaseAngle);
+    return { type: 'evaluate', ...evaluator.evaluate(job.bundle, job.creaseAngle) };
   },
   onResult: (job, outcome) => {
+    if (outcome.type === 'preview') {
+      respond({
+        type: 'preview-result',
+        id: job.id,
+        channel: job.channel,
+        preview: outcome.preview,
+      });
+      return;
+    }
     respond({
       type: 'result',
       id: job.id,
@@ -77,13 +102,11 @@ const driver = new KernelDriver({
 scope.onmessage = (event: MessageEvent<KernelRequest>): void => {
   const request = event.data;
   switch (request.type) {
+    // Both kinds of work are submitted verbatim: a `Job` *is* its request, so
+    // there is nothing here to copy and nothing to get wrong.
     case 'evaluate':
-      driver.submit({
-        id: request.id,
-        channel: request.channel,
-        bundle: request.bundle,
-        ...(request.creaseAngle === undefined ? {} : { creaseAngle: request.creaseAngle }),
-      });
+    case 'preview':
+      driver.submit(request);
       return;
     case 'cancel':
       driver.cancel(request.channel);

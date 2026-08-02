@@ -38,9 +38,12 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import {
   PRIMITIVE_KINDS,
+  TESSELLATION_QUALITIES,
   defaultParameters,
+  getPrimitive,
   spawnPrimitive,
   type PrimitiveKind,
+  type TessellationQuality,
 } from '../src/core/index.js';
 import { Evaluator, type MeshPayload } from '../src/kernel/index.js';
 
@@ -53,6 +56,7 @@ import {
   soloBundle,
   triangleCount,
   volume,
+  type Bounds,
 } from './support/kernel-fixture.js';
 
 /** `actual / expected ≈ 1`, to `digits` significant figures. See the header. */
@@ -60,10 +64,17 @@ function expectRatio(actual: number, expected: number, digits = 5): void {
   expect(actual / expected).toBeCloseTo(1, digits);
 }
 
+/** The size of a bounding box along one axis. */
+function extent(box: Bounds, axis: number): number {
+  return (box.max[axis] ?? 0) - (box.min[axis] ?? 0);
+}
+
+let api: Awaited<ReturnType<typeof sharedManifold>>;
 let evaluator: Evaluator;
 
 beforeAll(async () => {
-  evaluator = new Evaluator(await sharedManifold());
+  api = await sharedManifold();
+  evaluator = new Evaluator(api);
 });
 
 function meshOf(kind: PrimitiveKind, params: Record<string, number> = {}): MeshPayload {
@@ -268,4 +279,103 @@ describe('defaults', () => {
       expect(volume(outcome.mesh)).toBeGreaterThan(0);
     }
   });
+});
+
+/**
+ * The property #6's subtree cache is built on, asserted from the mesh side.
+ *
+ * `primitives.test.ts` already holds down the parameter half: `parametersKey`
+ * is canonical, so two spellings of one box produce one cache key. That is only
+ * half the claim. If construction were not itself deterministic, one key would
+ * name two meshes, the cache would serve whichever it happened to build first,
+ * and nothing anywhere would report a difference — the viewport would just be
+ * subtly wrong on a reload.
+ *
+ * Byte-identical is the right bar rather than "close enough": these buffers are
+ * produced by the same WASM build from the same inputs, so any drift at all is
+ * an ambient input that should not be there.
+ */
+describe('construction is deterministic', () => {
+  /** A fresh evaluator per build, so the cache cannot be why two meshes match. */
+  function uncachedMesh(kind: PrimitiveKind, params: Record<string, number> = {}): MeshPayload {
+    return new Evaluator(api).evaluate(soloBundle(kind, params)).mesh;
+  }
+
+  for (const kind of PRIMITIVE_KINDS) {
+    it(`${kind} builds byte-identically from identical parameters`, () => {
+      const first = uncachedMesh(kind);
+      const second = uncachedMesh(kind);
+      expect([...second.vertices]).toEqual([...first.vertices]);
+      expect([...second.indices]).toEqual([...first.indices]);
+    });
+  }
+
+  it('a parameter that differs produces a mesh that differs', () => {
+    // The negative of the above: identical output for identical input is only
+    // interesting if the output is sensitive to the input at all.
+    const nominal = uncachedMesh('cylinder');
+    const taller = uncachedMesh('cylinder', { height: 0.09 });
+    expect([...taller.vertices]).not.toEqual([...nominal.vertices]);
+  });
+});
+
+/**
+ * Quality tiers change how much geometry there is, never how big it is.
+ *
+ * This is the lever `docs/kernel.md` names first when a tree misses its budget,
+ * and the one #12 will pull to put six thumbnails on a wrist at 72fps. It is
+ * only a usable lever if switching tiers cannot change the part: a `draft`
+ * session that quietly shrank every cylinder would be a measurement error you
+ * would carry all the way to a slicer.
+ *
+ * Which primitives *should* change is read from the registry rather than
+ * listed here — a box has no segment count to scale, and hardcoding which three
+ * do is the failure mode `primitives.test.ts` exists to catch.
+ */
+describe('tessellation tiers', () => {
+  function tierMesh(kind: PrimitiveKind, quality: TessellationQuality): MeshPayload {
+    const node = spawnPrimitive(kind, { quality });
+    const outcome = evaluator.evaluate({ rootId: node.id, nodes: [node] });
+    expect(outcome.warnings).toEqual([]);
+    return outcome.mesh;
+  }
+
+  /** Whether this primitive has any parameter a tier would scale. */
+  function isTessellated(kind: PrimitiveKind): boolean {
+    return getPrimitive(kind).parameters.some((parameter) => parameter.tessellation);
+  }
+
+  for (const kind of PRIMITIVE_KINDS) {
+    it(`${kind} keeps its dimensions across draft, standard and fine`, () => {
+      const reference = bounds(tierMesh(kind, 'standard'));
+      for (const quality of TESSELLATION_QUALITIES) {
+        const measured = bounds(tierMesh(kind, quality));
+        for (let axis = 0; axis < 3; axis += 1) {
+          // A tolerance rather than equality: a segment count decides where an
+          // inscribed polygon's vertices land, so a coarser sweep is entitled
+          // to a fractionally smaller extent. What would fail here is a tier
+          // that scaled a dimension, which is a whole-percent error at least.
+          expectRatio(extent(measured, axis), extent(reference, axis), 2);
+        }
+      }
+    });
+
+    it(
+      isTessellated(kind)
+        ? `${kind} gets denser with every tier`
+        : `${kind} has no segment count for a tier to scale`,
+      () => {
+        const draft = triangleCount(tierMesh(kind, 'draft'));
+        const standard = triangleCount(tierMesh(kind, 'standard'));
+        const fine = triangleCount(tierMesh(kind, 'fine'));
+
+        if (!isTessellated(kind)) {
+          expect([draft, fine]).toEqual([standard, standard]);
+          return;
+        }
+        expect(draft).toBeLessThan(standard);
+        expect(standard).toBeLessThan(fine);
+      },
+    );
+  }
 });

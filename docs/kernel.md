@@ -3,8 +3,10 @@
 `src/kernel/`. Turns a document subtree from [#5](https://github.com/kruddage/carve/issues/5) into
 evaluated, manifold-guaranteed mesh geometry, off the main thread, incrementally.
 
-This is [#6](https://github.com/kruddage/carve/issues/6). It is the highest-fanout node on the
-roadmap — [#7b](https://github.com/kruddage/carve/issues/7),
+This is [#6](https://github.com/kruddage/carve/issues/6), plus the thumbnail geometry of
+[#7b](https://github.com/kruddage/carve/issues/7) — see [Previews](#previews-the-other-kind-of-work)
+— which lives here because building a solid is mesh work and belongs on the same side of the worker
+boundary as the booleans that consume it. #6 is the highest-fanout node on the roadmap —
 [#9](https://github.com/kruddage/carve/issues/9),
 [#11](https://github.com/kruddage/carve/issues/11),
 [#13](https://github.com/kruddage/carve/issues/13) and
@@ -40,8 +42,10 @@ the same reason.
 | ------------- | ---------------------------------------------------------------- |
 | `runtime.ts`  | loading `manifold-3d`, and which build of it                     |
 | `solids.ts`   | primitive parameters → manifold solids, and the Z-up → Y-up seam |
+| `mesh.ts`     | a solid's surface as the buffers #4 uploads                      |
 | `hash.ts`     | the subtree fingerprint the cache rests on                       |
 | `evaluate.ts` | the tree walk, the cache, and WASM memory ownership              |
+| `preview.ts`  | thumbnail geometry, framed to a fixed size                       |
 | `driver.ts`   | which request runs and which is abandoned before it starts       |
 | `client.ts`   | the main-thread handle, and the never-apply-a-stale-result rule  |
 | `protocol.ts` | the wire between the two                                         |
@@ -187,6 +191,39 @@ while box edges and every cut a boolean makes stay crisp.
 Normals are not computed per subtree, because they are a property of the visible surface: a face an
 ancestor boolean is about to cut away does not need one.
 
+## Previews: the other kind of work
+
+[#7b](https://github.com/kruddage/carve/issues/7) asks for 3D thumbnails — the wrist menu
+([#12](https://github.com/kruddage/carve/issues/12)) wants a small solid that turns, not a flat
+icon, and the desktop palette ([#9](https://github.com/kruddage/carve/issues/9)) wants the same mesh
+at a larger size. `preview.ts` builds them, and a `preview` request carries one to the main thread.
+
+A preview is one primitive, at `draft` density, **framed**: scaled uniformly so its longest
+bounding-box edge is one metre, with the true bounds reported alongside so a caller can still label
+the entry "60 mm". Framing is the reason this is not simply an evaluation of a one-node bundle. A
+menu cell is a fixed size, and a 60mm box beside a 108mm torus would otherwise arrive at half the
+apparent size for no reason a user could act on — and the factor that fixes it can only be known
+after the solid exists. Two consequences follow from keeping it separate:
+
+- **Previews do not touch the subtree cache.** Six thumbnails, rebuilt every time a parameter moves,
+  would evict live document subtrees to hold geometry nobody is modelling with.
+- **Previews do not reach mesh listeners.** `preview-result` is its own message and `requestPreview`
+  its own call, because a subscriber is the renderer drawing the document. One shared message type
+  is how a palette entry ends up drawn as the part.
+
+What previews _do_ share is everything that has to agree: the same `buildSolid`, the same
+`normalizeParameters`, the same crease pass in `mesh.ts`. With framing off and a matching tier, a
+preview mesh is asserted byte-identical to the evaluated one — a thumbnail is a smaller picture of
+the same solid, never a second opinion about what a torus is.
+
+They also share the queue, and therefore the channel rule — with a default of one channel _per
+primitive kind_, `previewChannel(kind)`. Not one channel for all thumbnails: a palette asks for six
+previews in a single pass, and on a shared channel five of them would be superseded before running
+and come back `null`. Per kind, the supersession that survives is the one that is wanted — dragging
+a parameter abandons that shape's older thumbnail and leaves its neighbours alone — and no preview
+is ever on the viewport's channel, so a rebuilding palette cannot displace the evaluation the scene
+is waiting for.
+
 ## Degenerate input warns, never throws
 
 `normalizeParameters` repairs degenerate _parameters_ upstream, so what reaches the kernel is
@@ -255,15 +292,23 @@ await kernel.request(doc.bundle()); // the result that lands in the document
 
 On `transformCancel`, call `kernel.cancel()` and re-request the pre-gesture document.
 
-Tests construct a `KernelClient` over any `KernelPort`, or an `Evaluator` directly over a
-`loadManifold()` toolkit. Neither needs a `Worker`.
+A palette or a wrist menu asks for thumbnails instead, one per registry entry:
+
+```ts
+// One channel per kind by default, so all six can be in flight at once.
+const previews = await Promise.all(
+  listPrimitives().map((definition) => kernel.requestPreview({ kind: definition.kind })),
+);
+for (const preview of previews) {
+  if (preview) cell(preview.kind).upload(preview.mesh); // already framed to a unit box
+}
+```
+
+Tests construct a `KernelClient` over any `KernelPort`, an `Evaluator` directly over a
+`loadManifold()` toolkit, or call `buildPreview` with the toolkit and nothing else. None of them
+needs a `Worker`.
 
 ## What is deliberately not here
-
-**Mesh builders for previews and thumbnails.** That is
-[#7b](https://github.com/kruddage/carve/issues/7). The kernel builds manifold solids from
-parameters because it needs them to boolean; a lightweight non-manifold preview mesh for a palette
-icon is a different job with different constraints.
 
 **WGSL compute shaders for CSG.** The kernel is WASM. See
 [#4](https://github.com/kruddage/carve/issues/4).
