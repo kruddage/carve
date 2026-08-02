@@ -27,20 +27,36 @@ import tseslint from 'typescript-eslint';
  *
  * expected: 1 error, @typescript-eslint/no-restricted-imports, exit code 1.
  */
+/** Every layer that sits outside `src/core/` and `src/kernel/`, as import globs. */
+const OUTER_LAYER_GLOBS = ['io', 'render', 'input', 'ui', 'xr'].flatMap((layer) => [
+  `**/${layer}/**`,
+  `**/${layer}`,
+]);
+
 const FORBIDDEN_FOR_HEADLESS_LAYERS = [
   {
-    group: [
-      '**/render/**',
-      '**/render',
-      '**/input/**',
-      '**/input',
-      '**/ui/**',
-      '**/ui',
-      '**/xr/**',
-      '**/xr',
-    ],
+    group: OUTER_LAYER_GLOBS,
     message:
-      'Import boundary: src/core/ and src/kernel/ are headless and must not import from src/render/, src/input/, src/ui/ or src/xr/. Dependencies point inward — move the shared type into core, or invert the call so the outer layer drives.',
+      'Import boundary: src/core/ and src/kernel/ are headless and must not import from src/io/, src/render/, src/input/, src/ui/ or src/xr/. Dependencies point inward — move the shared type into core, or invert the call so the outer layer drives.',
+  },
+];
+
+/**
+ * `src/io/` is the export path, and it may see the document and the kernel's
+ * buffers — nothing above them.
+ *
+ * The moment it can import the renderer, "the exported file is the mesh the
+ * viewport drew" becomes a claim about two pipelines rather than one, and
+ * three.js `GLTFExporter` becomes the obvious way to write a GLB — which is
+ * exactly the decision `src/io/gltf.ts` exists to refuse, and which would make
+ * every export test need a GPU. The DOM is not a layer and is not restricted;
+ * see `src/io/browser.ts`.
+ */
+const FORBIDDEN_FOR_IO = [
+  {
+    group: OUTER_LAYER_GLOBS.filter((glob) => !glob.includes('/io')),
+    message:
+      'Import boundary: src/io/ writes files from the document and the kernel mesh, and must not import from src/render/, src/input/, src/ui/ or src/xr/. An exporter that needs a renderer object exports something other than what was evaluated.',
   },
 ];
 
@@ -105,6 +121,13 @@ export default tseslint.config(
         'error',
         { patterns: FORBIDDEN_FOR_HEADLESS_LAYERS },
       ],
+    },
+  },
+  {
+    files: ['src/io/**/*.ts'],
+    rules: {
+      'no-restricted-imports': 'off',
+      '@typescript-eslint/no-restricted-imports': ['error', { patterns: FORBIDDEN_FOR_IO }],
     },
   },
   // The boundary test deliberately lints a violating snippet; it is not itself

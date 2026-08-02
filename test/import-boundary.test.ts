@@ -46,11 +46,15 @@ function importsFrom(layer: string, symbol: string): string {
 }
 
 const OUTER_LAYERS = [
+  ['io', 'IO_LAYER'],
   ['render', 'RENDER_LAYER'],
   ['input', 'INPUT_LAYER'],
   ['ui', 'UI_LAYER'],
   ['xr', 'XR_LAYER'],
 ] as const;
+
+/** The layers `src/io/` may not import. Itself and the inner two are fine. */
+const ABOVE_IO = OUTER_LAYERS.filter(([layer]) => layer !== 'io');
 
 describe('src/core and src/kernel may not import outer layers', () => {
   for (const headless of ['core', 'kernel'] as const) {
@@ -68,6 +72,45 @@ describe('src/core and src/kernel may not import outer layers', () => {
         TIMEOUT,
       );
     }
+  }
+});
+
+/**
+ * `src/io/` has a boundary of its own — see the note beside `FORBIDDEN_FOR_IO`
+ * in eslint.config.js. It is the reason an export is testable in Node: the
+ * exporters see a `MeshPayload` and never a renderer object.
+ */
+describe('src/io may not import the layers above it', () => {
+  for (const [layer, symbol] of ABOVE_IO) {
+    it(
+      `flags src/io/ importing src/${layer}/`,
+      async () => {
+        const errors = await boundaryErrors(
+          'src/io/__boundary_probe__.ts',
+          importsFrom(layer, symbol),
+        );
+        expect(errors).toHaveLength(1);
+        expect(errors[0]).toMatch(/Import boundary/);
+      },
+      TIMEOUT,
+    );
+  }
+
+  for (const [layer, symbol] of [
+    ['core', 'CORE_LAYER'],
+    ['kernel', 'KERNEL_LAYER'],
+  ] as const) {
+    it(
+      `allows src/io/ to import src/${layer}/`,
+      async () => {
+        const errors = await boundaryErrors(
+          'src/io/__boundary_probe__.ts',
+          importsFrom(layer, symbol),
+        );
+        expect(errors).toEqual([]);
+      },
+      TIMEOUT,
+    );
   }
 });
 

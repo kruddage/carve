@@ -15,6 +15,7 @@
 
 import { CORE_LAYER } from './core/index.js';
 import { INPUT_LAYER } from './input/index.js';
+import { IO_LAYER } from './io/index.js';
 import { KERNEL_LAYER } from './kernel/index.js';
 import { RENDER_LAYER } from './render/index.js';
 import { UI_LAYER } from './ui/index.js';
@@ -24,6 +25,7 @@ import { XR_LAYER } from './xr/index.js';
 export const LAYERS = [
   CORE_LAYER,
   KERNEL_LAYER,
+  IO_LAYER,
   RENDER_LAYER,
   INPUT_LAYER,
   UI_LAYER,

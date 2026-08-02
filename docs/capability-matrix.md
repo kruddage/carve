@@ -60,9 +60,23 @@ current browsers, so this table is about the surrounding APIs rather than the re
 | WebGL2                                   | _tbd_  | _tbd_  | _tbd_   |
 | WASM (for `manifold-3d`)                 | _tbd_  | _tbd_  | _tbd_   |
 | Web Workers + transferable `ArrayBuffer` | _tbd_  | _tbd_  | _tbd_   |
-| IndexedDB (autosave, #14)                | _tbd_  | _tbd_  | _tbd_   |
-| File download / file picker              | _tbd_  | _tbd_  | _tbd_   |
+| IndexedDB (autosave, `14a`)              | _tbd_  | _tbd_  | _tbd_   |
+| File download / file picker (`14a`)      | _tbd_  | _tbd_  | _tbd_   |
+| Drag-and-drop a `.carve` file (`14a`)    | _tbd_  | _tbd_  | _tbd_   |
 | `SharedArrayBuffer`                      | _tbd_  | _tbd_  | _tbd_   |
+
+The three `14a` rows are the ones with code behind them now: save, autosave, export and
+drag-and-drop have landed (see [`docs/persistence.md`](persistence.md)) and are asserted in CI at
+the byte level, but "the download works in Safari" is not a thing CI can answer. Checking them is
+ten minutes per browser once M2 has a page to open:
+
+1. Open the app, edit something, and confirm a `.carve` file downloads and reopens by picker and by
+   drop.
+2. Kill the tab mid-edit, reload, and confirm the autosave is offered back — that is the IndexedDB
+   row, and it is also the row a private-mode window is expected to _fail_: the app must still open,
+   with autosave reporting itself unavailable rather than throwing.
+3. Export an STL, open it in a slicer, and confirm the part measures what the inspector said in
+   millimetres. Export a GLB and open it in any glTF viewer.
 
 **`SharedArrayBuffer` will be absent in production regardless of the browser.** It requires
 cross-origin isolation via COOP/COEP response headers, and GitHub Pages cannot set response headers.
