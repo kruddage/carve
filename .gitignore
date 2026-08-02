@@ -1,0 +1,12 @@
+# No build tooling lives on this branch yet — the scaffold arrives with #3 and
+# brings a fuller list. This minimal file exists so that a local build or an
+# `npm install` run against this branch cannot be swept into a commit by a
+# `git add -A`. Without it there is nothing at all stopping that, and the
+# failure is quiet: thousands of files, staged and committed, in a PR whose
+# diff nobody scrolls to the bottom of.
+node_modules/
+dist/
+_site/
+
+# Claude Code agent worktrees: full checkouts of this repo nested inside it.
+.claude/

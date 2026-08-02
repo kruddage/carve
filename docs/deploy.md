@@ -8,27 +8,54 @@ push to `main`, and lives at:
 HTTPS is the point. WebXR only starts an immersive session from a secure context, so this URL is
 the only way to try a change on a Quest without standing up a tunnel and a trusted certificate.
 
-## One-time repo setting — do this or nothing publishes
+## Repo setting
 
-**Settings → Pages → Build and deployment → Source: `GitHub Actions`.**
+**Settings → Pages → Build and deployment → Source: `Deploy from a branch`, branch `gh-pages`,
+folder `/ (root)`.**
 
-Until that is flipped, `pages.yml` runs, goes green, uploads its artifact, and publishes nothing:
-the repo is still serving whatever the legacy branch-based source points at. This is the single
-most confusing failure mode in the whole setup, because there is no red X anywhere to notice. If
-the workflow is green and the site is stale, check this setting first.
+The branch does not exist until the first push to `main` runs the workflow, so set this after the
+first successful deploy — the branch will not be offered in the dropdown before then.
 
-After flipping it, run the workflow once from the Actions tab (it has `workflow_dispatch`) rather
-than waiting for the next push.
+This mirrors `kruddage/engine`. The alternative — Source: `GitHub Actions` — was rejected for one
+concrete reason: it publishes exactly **one** artifact per repository, so per-PR previews are
+impossible under it. The branch model lets every PR own a subdirectory of the same branch, which
+is what makes the previews below work.
 
 ## What gets published
 
-Today: the static repo root, which is just the coming-soon `index.html`. There is no build step.
+One `build` job produces the site and uploads it as an artifact; `deploy` and `preview` both
+consume that artifact, so what lands on a preview URL is byte-for-byte what would land on the live
+site.
 
-The workflow copies the site into a `_site/` directory and uploads that, excluding `.git`,
-`.github`, `docs/`, `LICENSE`, `CHANGELOG.md`, and the release-please config — the artifact should
-be the site and nothing else. That copy is one clearly-marked step in `pages.yml`; when the Vite
-scaffold lands (#3) it is replaced with `npm ci && npm run build` and the upload path changes from
-`_site` to `dist`. The rest of the workflow is unaffected.
+Today the build is a copy of the static repo root — just the coming-soon `index.html` — excluding
+`.git`, `.github`, `docs/`, `LICENSE`, `CHANGELOG.md`, and the release-please config, so the
+artifact is the site and nothing else. That copy is one clearly-marked step in `pages.yml`; when
+the Vite scaffold lands (#3) it becomes `npm ci && npm run build` and the upload path points at
+`dist`. Neither `deploy` nor `preview` cares which produced it.
+
+`deploy` runs only on push to `main` and pushes the artifact to the root of `gh-pages` with
+`keep_files: true`, which is what stops a main deploy from wiping every open PR's preview.
+
+## PR previews
+
+Every pull request from a branch in this repo gets its own deploy at:
+
+```
+https://kruddage.github.io/carve/pr-preview/pr-<N>/
+```
+
+The workflow comments the URL on the PR and deletes the directory when the PR merges or closes.
+This is the point of the whole branch-based setup: a headset can open a branch directly, with no
+local dev server, no `adb reverse`, and no certificate — which matters a lot when the device is
+the thing you are actually building for.
+
+Two limits worth knowing:
+
+- **Fork PRs get no preview.** The `pull_request` token is read-only for forks, so a fork cannot
+  push to `gh-pages`. Supporting them safely needs a separate `pull_request_target` /
+  `workflow_run` job that deploys outside the untrusted build context.
+- **The preview job is `continue-on-error`.** It is a convenience, not a correctness gate — CI
+  covers that — so a gh-pages push race can never block a merge.
 
 ## The base-path gotcha
 
@@ -36,11 +63,26 @@ This is a *project* Pages site, not a user site, so everything is served under t
 subdirectory rather than at the domain root. Any absolute path the app emits — `/assets/app.js`,
 `/probe/`, a `fetch('/models/foo.glb')`, a service-worker scope — resolves to
 `kruddage.github.io/assets/...`, which is not this repo, and 404s. Vite defaults `base` to `/`, so
-a build that works perfectly on `localhost:5173` will come up blank on Pages with nothing but
-console 404s to go on. The fix is `base: '/carve/'` in `vite.config.ts` (and using
-`import.meta.env.BASE_URL` rather than hand-written leading slashes anywhere runtime code builds a
-URL). Worth getting right before the first on-device test, because debugging a blank page from
-inside a headset — where there is no devtools panel — costs far more than it does on a laptop.
+a build that works perfectly on `localhost:5173` comes up blank on Pages with nothing but console
+404s to go on.
+
+Previews make this sharper, because the site is now served from **two different depths**:
+
+| | Path |
+|---|---|
+| Live | `/carve/` |
+| Preview | `/carve/pr-preview/pr-<N>/` |
+
+A hardcoded `base: '/carve/'` is correct for the first and wrong for the second — every preview
+would silently load the *live* site's bundle, which is the worst possible failure because the page
+renders and looks approximately right while testing the wrong code. Since `deploy` and `preview`
+share one artifact, the build cannot know its own depth.
+
+So the base is **relative** (`base: './'` in `vite.config.ts`), which resolves correctly at any
+depth and needs no per-job rebuild. The rule that follows: anywhere runtime code constructs a URL,
+use `import.meta.env.BASE_URL` or `new URL('./thing', import.meta.url)` — never a hand-written
+leading slash. Worth getting right before the first on-device test, because debugging a blank page
+from inside a headset, where there is no devtools panel, costs far more than it does on a laptop.
 
 The same trap applies to the capability probe from #2: link it as a relative path so it works at
 `/carve/probe/` without special-casing.
