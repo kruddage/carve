@@ -11,8 +11,8 @@ import tseslint from 'typescript-eslint';
  * Worker, and on a headset, with no renderer, no DOM input adapter and no UI
  * attached. The moment `core` reaches for `render`, the "one document, two
  * frontends" claim in issue #1 stops being true, and it stops being true
- * quietly — nothing breaks until someone tries to test the model headlessly or
- * swap the WebGPU backend for WebGL2.
+ * quietly — nothing breaks until someone tries to test the model headlessly, or
+ * to run it somewhere the renderer it accidentally depends on cannot go.
  *
  * So it is enforced here, and CI runs `npm run lint`. See issue #3: "the
  * abstraction is only real if it's enforced".

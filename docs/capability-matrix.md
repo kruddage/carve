@@ -1,31 +1,37 @@
 # Capability matrix
 
 What the target devices **actually** support, measured by the probe at
-[`/probe/`](https://kruddage.github.io/carve/probe/) ([source](../probe/)). This file exists so
-that [#1](https://github.com/kruddage/carve/issues/1)'s WebGPU table can be replaced with a
-measurement instead of a reading of release notes, and so the renderer default in
-[#4](https://github.com/kruddage/carve/issues/4) and
-[#10](https://github.com/kruddage/carve/issues/10) is chosen from evidence.
+[`/probe/`](https://kruddage.github.io/carve/probe/) ([source](../probe/)).
 
 > **Nothing here has been run on hardware yet.** Every measured cell below is a placeholder.
 > Do not cite this file until the placeholders are gone.
 
-## The one question
+## What this file is for now
 
-Not "does this device have WebGPU" — it is _"can WebGPU drive the stereo swapchain of a live
-immersive session"_. Those are different features:
+It used to exist to settle one question — can WebGPU drive the stereo swapchain of a live immersive
+session on Quest 3 — because the renderer's whole shape depended on the answer.
 
-|                 | What it tells you                                                                                                              |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `navigator.gpu` | WebGPU works on the flat 2D browser page. Quest Browser 146.0 shipped this as experimental.                                    |
-| `XRGPUBinding`  | WebGPU can replace `XRWebGLLayer` as the source of frames for an immersive session. This is the one that decides our renderer. |
+**That question is closed by decision rather than by measurement.** v1 renders with WebGL2 through
+three.js `WebGLRenderer`, on the flat page and in the headset alike. `XRGPUBinding` is not
+implemented on Quest, WebGL2 was always the expected shipping path, and carrying a second backend
+for a hypothetical cost more than it bought. See [#4](https://github.com/kruddage/carve/issues/4)
+and [`docs/roadmap.md`](roadmap.md).
 
-A device can have the first and not the second. Expect exactly that on Quest 3.
+So this file's job changed. It is no longer a decision record; it is the numbers
+[#10](https://github.com/kruddage/carve/issues/10),
+[#11](https://github.com/kruddage/carve/issues/11) and
+[#15](https://github.com/kruddage/carve/issues/15) need in order to not guess:
 
-**Verdict (fill in after the first Quest run):** _not yet measured_
+- **Native framebuffer scale factor** — the starting point for #15's resolution budget
+- **`session.supportedFrameRates`** — 72 / 90 / 120, which sets the frame budget
+- **`XRHand` joint count** on `inputSource.hand` — #11's whole input model
+- **Which reference spaces exist** — `local-floor` vs `bounded-floor` changes #10's setup
+- **Which browsers can open the app at all** — the desktop matrix below
 
-**Immersive-session backend default:** _not yet decided — the probe prints a recommendation line,
-paste it here_
+The probe still runs its WebGPU checks and they are still recorded. Not because anything depends on
+them, but because re-running the probe after a Quest Browser update is the only way we would learn
+that `XRGPUBinding` had landed — and that would be worth knowing, as a v2 question with evidence
+behind it rather than a v1 risk.
 
 ## How to run it, and re-run it
 
@@ -41,9 +47,28 @@ paste it here_
 4. Read Horizon OS version off the headset: **Settings › System › Software Update**. It is not
    exposed to web content, so the probe cannot capture it.
 
-**Re-run after every Quest Browser update.** It costs ten minutes and it is the only thing that
-will tell us when `XRGPUBinding` lands. When it does: update this file, update the WebGPU table in
-[#1](https://github.com/kruddage/carve/issues/1), and revisit the renderer default.
+**Re-run after every Quest Browser update.** It costs ten minutes, and it is what will tell us if
+the WebGPU picture ever changes.
+
+## Desktop browser support
+
+"Runs in a browser tab" means more browsers than the one you develop in. WebGL2 is universal in
+current browsers, so this table is about the surrounding APIs rather than the renderer.
+
+|                                          | Chrome | Safari | Firefox |
+| ---------------------------------------- | ------ | ------ | ------- |
+| WebGL2                                   | _tbd_  | _tbd_  | _tbd_   |
+| WASM (for `manifold-3d`)                 | _tbd_  | _tbd_  | _tbd_   |
+| Web Workers + transferable `ArrayBuffer` | _tbd_  | _tbd_  | _tbd_   |
+| IndexedDB (autosave, #14)                | _tbd_  | _tbd_  | _tbd_   |
+| File download / file picker              | _tbd_  | _tbd_  | _tbd_   |
+| `SharedArrayBuffer`                      | _tbd_  | _tbd_  | _tbd_   |
+
+**`SharedArrayBuffer` will be absent in production regardless of the browser.** It requires
+cross-origin isolation via COOP/COEP response headers, and GitHub Pages cannot set response headers.
+[#6](https://github.com/kruddage/carve/issues/6) must therefore use a single-threaded `manifold-3d`
+build, or Pages needs a service-worker shim to synthesize the headers. Decide before the kernel work
+starts, not after.
 
 ## Runs
 
@@ -73,21 +98,21 @@ the message is the result) / `INFO` / `SKIPPED`.
 | Logical cores         | _tbd_          | _tbd_          |
 | Device pixel ratio    | _tbd_          | _tbd_          |
 
-### WebGPU — outside XR (2D page)
+### The rows that feed a decision
 
-| Check                                         | Desktop Chrome | Quest 3 |
-| --------------------------------------------- | -------------- | ------- |
-| `navigator.gpu` present                       | _tbd_          | _tbd_   |
-| Preferred canvas format                       | _tbd_          | _tbd_   |
-| `requestAdapter()` succeeds                   | _tbd_          | _tbd_   |
-| Adapter info (vendor / architecture / device) | _tbd_          | _tbd_   |
-| Adapter description                           | _tbd_          | _tbd_   |
-| Adapter features (count)                      | _tbd_          | _tbd_   |
-| Adapter limits (count + notable)              | _tbd_          | _tbd_   |
-| `requestDevice()` succeeds                    | _tbd_          | _tbd_   |
-| WebGPU render pass on a 2D canvas             | _tbd_          | _tbd_   |
+These are the ones #10, #11 and #15 read. Everything else on this page is context.
 
-Full feature and limit dumps go in the raw output below, not here.
+| Check                                          | Desktop Chrome | Quest 3 | Consumed by           |
+| ---------------------------------------------- | -------------- | ------- | --------------------- |
+| Native framebuffer scale factor                | _tbd_          | _tbd_   | #15 resolution budget |
+| `XRWebGLLayer` framebuffer size @ native scale | _tbd_          | _tbd_   | #15                   |
+| `session.supportedFrameRates`                  | _tbd_          | _tbd_   | #15 frame budget      |
+| Current `session.frameRate`                    | _tbd_          | _tbd_   | #15                   |
+| `XRHand` on `inputSource.hand` / joint count   | _tbd_          | _tbd_   | #11                   |
+| Reference space: `local-floor`                 | _tbd_          | _tbd_   | #10                   |
+| Reference space: `bounded-floor`               | _tbd_          | _tbd_   | #10                   |
+| `bounded-floor` boundsGeometry                 | _tbd_          | _tbd_   | #10                   |
+| Views per frame / viewport size                | _tbd_          | _tbd_   | #10, #15              |
 
 ### WebXR — outside XR (2D page)
 
@@ -97,55 +122,46 @@ Full feature and limit dumps go in the raw output below, not here.
 | `isSessionSupported('immersive-vr')` | _tbd_          | _tbd_   |
 | `isSessionSupported('immersive-ar')` | _tbd_          | _tbd_   |
 | `isSessionSupported('inline')`       | _tbd_          | _tbd_   |
-| `window.XRGPUBinding` defined        | _tbd_          | _tbd_   |
 | `window.XRWebGLBinding` defined      | _tbd_          | _tbd_   |
 | `window.XRHand` defined              | _tbd_          | _tbd_   |
 
-### Inside an immersive-vr session — the part that matters
+### Inside an immersive-vr session
 
-| Check                                          | Desktop Chrome | Quest 3 |
-| ---------------------------------------------- | -------------- | ------- |
-| `immersive-vr` session granted                 | _tbd_          | _tbd_   |
-| Enabled features                               | _tbd_          | _tbd_   |
-| `XRGPUBinding` defined inside session          | _tbd_          | _tbd_   |
-| `requestAdapter({ xrCompatible: true })`       | _tbd_          | _tbd_   |
-| `requestDevice()` for XR use                   | _tbd_          | _tbd_   |
-| `new XRGPUBinding(session, device)`            | _tbd_          | _tbd_   |
-| WebGPU projection layer created                | _tbd_          | _tbd_   |
-| **WebGPU layer survives one frame**            | _tbd_          | _tbd_   |
-| WebGL2 context, `xrCompatible`                 | _tbd_          | _tbd_   |
-| `XRWebGLLayer` created (fallback path)         | _tbd_          | _tbd_   |
-| Native framebuffer scale factor                | _tbd_          | _tbd_   |
-| `XRWebGLLayer` framebuffer size @ scale 1.0    | _tbd_          | _tbd_   |
-| `XRWebGLLayer` framebuffer size @ native scale | _tbd_          | _tbd_   |
-| `XRWebGLLayer` survives one frame              | _tbd_          | _tbd_   |
-| Views per frame / viewport size                | _tbd_          | _tbd_   |
+| Check                                       | Desktop Chrome | Quest 3 |
+| ------------------------------------------- | -------------- | ------- |
+| `immersive-vr` session granted              | _tbd_          | _tbd_   |
+| Enabled features                            | _tbd_          | _tbd_   |
+| WebGL2 context, `xrCompatible`              | _tbd_          | _tbd_   |
+| `XRWebGLLayer` created                      | _tbd_          | _tbd_   |
+| `XRWebGLLayer` framebuffer size @ scale 1.0 | _tbd_          | _tbd_   |
+| `XRWebGLLayer` survives one frame           | _tbd_          | _tbd_   |
+| Reference space: `viewer`                   | _tbd_          | _tbd_   |
+| Reference space: `local`                    | _tbd_          | _tbd_   |
+| Reference space: `unbounded`                | _tbd_          | _tbd_   |
+| Input sources seen                          | _tbd_          | _tbd_   |
 
-The bolded row is the decision. If it is not `PASS` on Quest 3, the immersive backend is WebGL2
-and the WebGL2 path is a shipping path, not scaffolding.
+### WebGPU — recorded, not depended on
+
+Kept so a future re-run tells us whether the v2 question has changed. Nothing in v1 reads these
+rows.
+
+| Check                                         | Desktop Chrome | Quest 3 |
+| --------------------------------------------- | -------------- | ------- |
+| `navigator.gpu` present                       | _tbd_          | _tbd_   |
+| `requestAdapter()` succeeds                   | _tbd_          | _tbd_   |
+| Adapter info (vendor / architecture / device) | _tbd_          | _tbd_   |
+| `window.XRGPUBinding` defined                 | _tbd_          | _tbd_   |
+| `XRGPUBinding` defined inside session         | _tbd_          | _tbd_   |
+| `new XRGPUBinding(session, device)`           | _tbd_          | _tbd_   |
+| WebGPU projection layer created               | _tbd_          | _tbd_   |
+| WebGPU layer survives one frame               | _tbd_          | _tbd_   |
 
 `requestAdapter({ xrCompatible: true })` passing does **not** on its own prove anything: WebIDL
 drops unknown dictionary members, so on a browser without the binding module the flag is silently
 ignored and the call succeeds anyway. Only the projection-layer and one-frame rows are evidence.
 
-### Session capabilities
-
-Needed later by [#10](https://github.com/kruddage/carve/issues/10),
-[#11](https://github.com/kruddage/carve/issues/11) and
-[#15](https://github.com/kruddage/carve/issues/15); captured now because the headset is already on.
-
-| Check                                        | Desktop Chrome | Quest 3 |
-| -------------------------------------------- | -------------- | ------- |
-| Reference space: `viewer`                    | _tbd_          | _tbd_   |
-| Reference space: `local`                     | _tbd_          | _tbd_   |
-| Reference space: `local-floor`               | _tbd_          | _tbd_   |
-| Reference space: `bounded-floor`             | _tbd_          | _tbd_   |
-| Reference space: `unbounded`                 | _tbd_          | _tbd_   |
-| `bounded-floor` boundsGeometry               | _tbd_          | _tbd_   |
-| `session.supportedFrameRates`                | _tbd_          | _tbd_   |
-| Current `session.frameRate`                  | _tbd_          | _tbd_   |
-| `XRHand` on `inputSource.hand` / joint count | _tbd_          | _tbd_   |
-| Input sources seen                           | _tbd_          | _tbd_   |
+If that last row ever comes back `PASS` on Quest 3, open a v2 issue with the measurement attached.
+It is not on its own a reason to reopen the v1 renderer decision.
 
 ## Raw probe output
 
@@ -166,11 +182,9 @@ diff between two browser versions is the point.
 
 ## Follow-ups once the first Quest run lands
 
-- [ ] Replace the "Can we actually use WebGPU on Quest 3?" table in
-      [#1](https://github.com/kruddage/carve/issues/1) with the measured result.
-- [ ] Record the one-line backend recommendation in [#2](https://github.com/kruddage/carve/issues/2)
-      and close it.
-- [ ] Carry the decision into [#4](https://github.com/kruddage/carve/issues/4)'s renderer
-      abstraction as the immersive default.
 - [ ] Note the native framebuffer scale factor in [#15](https://github.com/kruddage/carve/issues/15)
       — it is the starting point for the resolution budget.
+- [ ] Carry `supportedFrameRates` into [#15](https://github.com/kruddage/carve/issues/15)'s frame
+      budget, and the hand joint count into [#11](https://github.com/kruddage/carve/issues/11).
+- [ ] Confirm which reference spaces [#10](https://github.com/kruddage/carve/issues/10) can rely on.
+- [ ] Fill the desktop browser table from Safari and Firefox, not just Chrome.

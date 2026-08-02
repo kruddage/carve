@@ -16,8 +16,8 @@
  *     this layer is only the parts that exist because there is a headset.
  *   - direct document mutation — hands are an input adapter, and adapters emit
  *     commands (src/input/).
- *   - assuming a backend. Which of WebGL2 or WebGPU backs the session is
- *     src/render/'s business, not this layer's.
+ *   - renderer internals. The session renders through src/render/ like every
+ *     other surface does; this layer supplies poses and input, not draw calls.
  *
  * Implemented by issues #10–#12. Placeholder until then.
  */
