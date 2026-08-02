@@ -12,13 +12,13 @@ measurement instead of a reading of release notes, and so the renderer default i
 
 ## The one question
 
-Not "does this device have WebGPU" — it is *"can WebGPU drive the stereo swapchain of a live
-immersive session"*. Those are different features:
+Not "does this device have WebGPU" — it is _"can WebGPU drive the stereo swapchain of a live
+immersive session"_. Those are different features:
 
-| | What it tells you |
-|---|---|
-| `navigator.gpu` | WebGPU works on the flat 2D browser page. Quest Browser 146.0 shipped this as experimental. |
-| `XRGPUBinding` | WebGPU can replace `XRWebGLLayer` as the source of frames for an immersive session. This is the one that decides our renderer. |
+|                 | What it tells you                                                                                                              |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `navigator.gpu` | WebGPU works on the flat 2D browser page. Quest Browser 146.0 shipped this as experimental.                                    |
+| `XRGPUBinding`  | WebGPU can replace `XRWebGLLayer` as the source of frames for an immersive session. This is the one that decides our renderer. |
 
 A device can have the first and not the second. Expect exactly that on Quest 3.
 
@@ -47,13 +47,13 @@ will tell us when `XRGPUBinding` lands. When it does: update this file, update t
 
 ## Runs
 
-| | Desktop Chrome | Quest 3 |
-|---|---|---|
-| Date run | _YYYY-MM-DD_ | _YYYY-MM-DD_ |
-| Browser version | _e.g. Chrome 1xx.x.xxxx.xx_ | _e.g. OculusBrowser 1xx.x (Chromium 1xx)_ |
-| Horizon OS version | n/a | _from Settings › System › Software Update_ |
-| OS / platform | _e.g. macOS 15.x_ | _Horizon OS (Android base per UA)_ |
-| Run by | _who_ | _who_ |
+|                    | Desktop Chrome              | Quest 3                                    |
+| ------------------ | --------------------------- | ------------------------------------------ |
+| Date run           | _YYYY-MM-DD_                | _YYYY-MM-DD_                               |
+| Browser version    | _e.g. Chrome 1xx.x.xxxx.xx_ | _e.g. OculusBrowser 1xx.x (Chromium 1xx)_  |
+| Horizon OS version | n/a                         | _from Settings › System › Software Update_ |
+| OS / platform      | _e.g. macOS 15.x_           | _Horizon OS (Android base per UA)_         |
+| Run by             | _who_                       | _who_                                      |
 
 ## Results
 
@@ -63,63 +63,63 @@ the message is the result) / `INFO` / `SKIPPED`.
 
 ### Environment
 
-| Check | Desktop Chrome | Quest 3 |
-|---|---|---|
-| User agent | _tbd_ | _tbd_ |
-| Browser version | _tbd_ | _tbd_ |
-| Platform / OS version | _tbd_ | _tbd_ |
-| Horizon OS version | n/a | _tbd (manual)_ |
-| Secure context | _tbd_ | _tbd_ |
-| Logical cores | _tbd_ | _tbd_ |
-| Device pixel ratio | _tbd_ | _tbd_ |
+| Check                 | Desktop Chrome | Quest 3        |
+| --------------------- | -------------- | -------------- |
+| User agent            | _tbd_          | _tbd_          |
+| Browser version       | _tbd_          | _tbd_          |
+| Platform / OS version | _tbd_          | _tbd_          |
+| Horizon OS version    | n/a            | _tbd (manual)_ |
+| Secure context        | _tbd_          | _tbd_          |
+| Logical cores         | _tbd_          | _tbd_          |
+| Device pixel ratio    | _tbd_          | _tbd_          |
 
 ### WebGPU — outside XR (2D page)
 
-| Check | Desktop Chrome | Quest 3 |
-|---|---|---|
-| `navigator.gpu` present | _tbd_ | _tbd_ |
-| Preferred canvas format | _tbd_ | _tbd_ |
-| `requestAdapter()` succeeds | _tbd_ | _tbd_ |
-| Adapter info (vendor / architecture / device) | _tbd_ | _tbd_ |
-| Adapter description | _tbd_ | _tbd_ |
-| Adapter features (count) | _tbd_ | _tbd_ |
-| Adapter limits (count + notable) | _tbd_ | _tbd_ |
-| `requestDevice()` succeeds | _tbd_ | _tbd_ |
-| WebGPU render pass on a 2D canvas | _tbd_ | _tbd_ |
+| Check                                         | Desktop Chrome | Quest 3 |
+| --------------------------------------------- | -------------- | ------- |
+| `navigator.gpu` present                       | _tbd_          | _tbd_   |
+| Preferred canvas format                       | _tbd_          | _tbd_   |
+| `requestAdapter()` succeeds                   | _tbd_          | _tbd_   |
+| Adapter info (vendor / architecture / device) | _tbd_          | _tbd_   |
+| Adapter description                           | _tbd_          | _tbd_   |
+| Adapter features (count)                      | _tbd_          | _tbd_   |
+| Adapter limits (count + notable)              | _tbd_          | _tbd_   |
+| `requestDevice()` succeeds                    | _tbd_          | _tbd_   |
+| WebGPU render pass on a 2D canvas             | _tbd_          | _tbd_   |
 
 Full feature and limit dumps go in the raw output below, not here.
 
 ### WebXR — outside XR (2D page)
 
-| Check | Desktop Chrome | Quest 3 |
-|---|---|---|
-| `navigator.xr` present | _tbd_ | _tbd_ |
-| `isSessionSupported('immersive-vr')` | _tbd_ | _tbd_ |
-| `isSessionSupported('immersive-ar')` | _tbd_ | _tbd_ |
-| `isSessionSupported('inline')` | _tbd_ | _tbd_ |
-| `window.XRGPUBinding` defined | _tbd_ | _tbd_ |
-| `window.XRWebGLBinding` defined | _tbd_ | _tbd_ |
-| `window.XRHand` defined | _tbd_ | _tbd_ |
+| Check                                | Desktop Chrome | Quest 3 |
+| ------------------------------------ | -------------- | ------- |
+| `navigator.xr` present               | _tbd_          | _tbd_   |
+| `isSessionSupported('immersive-vr')` | _tbd_          | _tbd_   |
+| `isSessionSupported('immersive-ar')` | _tbd_          | _tbd_   |
+| `isSessionSupported('inline')`       | _tbd_          | _tbd_   |
+| `window.XRGPUBinding` defined        | _tbd_          | _tbd_   |
+| `window.XRWebGLBinding` defined      | _tbd_          | _tbd_   |
+| `window.XRHand` defined              | _tbd_          | _tbd_   |
 
 ### Inside an immersive-vr session — the part that matters
 
-| Check | Desktop Chrome | Quest 3 |
-|---|---|---|
-| `immersive-vr` session granted | _tbd_ | _tbd_ |
-| Enabled features | _tbd_ | _tbd_ |
-| `XRGPUBinding` defined inside session | _tbd_ | _tbd_ |
-| `requestAdapter({ xrCompatible: true })` | _tbd_ | _tbd_ |
-| `requestDevice()` for XR use | _tbd_ | _tbd_ |
-| `new XRGPUBinding(session, device)` | _tbd_ | _tbd_ |
-| WebGPU projection layer created | _tbd_ | _tbd_ |
-| **WebGPU layer survives one frame** | _tbd_ | _tbd_ |
-| WebGL2 context, `xrCompatible` | _tbd_ | _tbd_ |
-| `XRWebGLLayer` created (fallback path) | _tbd_ | _tbd_ |
-| Native framebuffer scale factor | _tbd_ | _tbd_ |
-| `XRWebGLLayer` framebuffer size @ scale 1.0 | _tbd_ | _tbd_ |
-| `XRWebGLLayer` framebuffer size @ native scale | _tbd_ | _tbd_ |
-| `XRWebGLLayer` survives one frame | _tbd_ | _tbd_ |
-| Views per frame / viewport size | _tbd_ | _tbd_ |
+| Check                                          | Desktop Chrome | Quest 3 |
+| ---------------------------------------------- | -------------- | ------- |
+| `immersive-vr` session granted                 | _tbd_          | _tbd_   |
+| Enabled features                               | _tbd_          | _tbd_   |
+| `XRGPUBinding` defined inside session          | _tbd_          | _tbd_   |
+| `requestAdapter({ xrCompatible: true })`       | _tbd_          | _tbd_   |
+| `requestDevice()` for XR use                   | _tbd_          | _tbd_   |
+| `new XRGPUBinding(session, device)`            | _tbd_          | _tbd_   |
+| WebGPU projection layer created                | _tbd_          | _tbd_   |
+| **WebGPU layer survives one frame**            | _tbd_          | _tbd_   |
+| WebGL2 context, `xrCompatible`                 | _tbd_          | _tbd_   |
+| `XRWebGLLayer` created (fallback path)         | _tbd_          | _tbd_   |
+| Native framebuffer scale factor                | _tbd_          | _tbd_   |
+| `XRWebGLLayer` framebuffer size @ scale 1.0    | _tbd_          | _tbd_   |
+| `XRWebGLLayer` framebuffer size @ native scale | _tbd_          | _tbd_   |
+| `XRWebGLLayer` survives one frame              | _tbd_          | _tbd_   |
+| Views per frame / viewport size                | _tbd_          | _tbd_   |
 
 The bolded row is the decision. If it is not `PASS` on Quest 3, the immersive backend is WebGL2
 and the WebGL2 path is a shipping path, not scaffolding.
@@ -134,18 +134,18 @@ Needed later by [#10](https://github.com/kruddage/carve/issues/10),
 [#11](https://github.com/kruddage/carve/issues/11) and
 [#15](https://github.com/kruddage/carve/issues/15); captured now because the headset is already on.
 
-| Check | Desktop Chrome | Quest 3 |
-|---|---|---|
-| Reference space: `viewer` | _tbd_ | _tbd_ |
-| Reference space: `local` | _tbd_ | _tbd_ |
-| Reference space: `local-floor` | _tbd_ | _tbd_ |
-| Reference space: `bounded-floor` | _tbd_ | _tbd_ |
-| Reference space: `unbounded` | _tbd_ | _tbd_ |
-| `bounded-floor` boundsGeometry | _tbd_ | _tbd_ |
-| `session.supportedFrameRates` | _tbd_ | _tbd_ |
-| Current `session.frameRate` | _tbd_ | _tbd_ |
-| `XRHand` on `inputSource.hand` / joint count | _tbd_ | _tbd_ |
-| Input sources seen | _tbd_ | _tbd_ |
+| Check                                        | Desktop Chrome | Quest 3 |
+| -------------------------------------------- | -------------- | ------- |
+| Reference space: `viewer`                    | _tbd_          | _tbd_   |
+| Reference space: `local`                     | _tbd_          | _tbd_   |
+| Reference space: `local-floor`               | _tbd_          | _tbd_   |
+| Reference space: `bounded-floor`             | _tbd_          | _tbd_   |
+| Reference space: `unbounded`                 | _tbd_          | _tbd_   |
+| `bounded-floor` boundsGeometry               | _tbd_          | _tbd_   |
+| `session.supportedFrameRates`                | _tbd_          | _tbd_   |
+| Current `session.frameRate`                  | _tbd_          | _tbd_   |
+| `XRHand` on `inputSource.hand` / joint count | _tbd_          | _tbd_   |
+| Input sources seen                           | _tbd_          | _tbd_   |
 
 ## Raw probe output
 

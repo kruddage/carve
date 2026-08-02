@@ -46,7 +46,18 @@ const FORBIDDEN_FOR_HEADLESS_LAYERS = [
 
 export default tseslint.config(
   {
-    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'public/**', 'probe/**'],
+    ignores: [
+      'dist/**',
+      'coverage/**',
+      'node_modules/**',
+      // Static passthrough, shipped byte-for-byte — including the #2 capability
+      // probe at public/probe/, which is deliberately plain untyped JS.
+      'public/**',
+      // Claude Code agent worktrees. These are full checkouts of this repo
+      // nested inside it, so without this the linter walks into each one and
+      // reports parse errors for files that are not part of this project.
+      '**/.claude/**',
+    ],
   },
 
   js.configs.recommended,

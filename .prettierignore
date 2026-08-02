@@ -9,5 +9,8 @@ CHANGELOG.md
 docs/roadmap.md
 
 # Static passthrough — shipped byte-for-byte, so it is not ours to reformat.
+# This includes the #2 capability probe at public/probe/.
 public/
-probe/
+
+# Claude Code agent worktrees: full checkouts of this repo nested inside it.
+.claude/

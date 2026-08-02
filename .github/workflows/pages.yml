@@ -30,37 +30,34 @@ jobs:
       - uses: actions/checkout@v4
 
       # === The one step that changes when the app arrives ===
-      # Today there is no build: the site is the static repo root (the
-      # coming-soon index.html). Everything published is copied into _site so
-      # the artifact contains the site and nothing else — no .git, no docs, no
-      # LICENSE, no tooling config.
+      # It has now arrived. This previously copied the static repo root; the
+      # scaffold from #3 means the site is a Vite build, so this is the
+      # setup-node + npm ci + npm run build the earlier comment promised, and
+      # the upload path moved from _site to dist. The deploy and preview jobs
+      # below never needed to know which one produced the directory, and did
+      # not change.
       #
-      # When #3 lands Vite, this whole step is replaced by the usual
-      # setup-node + npm ci + npm run build, and the upload path below just
-      # points at dist instead of _site. The deploy and preview jobs never need
-      # to know which one produced the directory.
-      #
-      # Leading slashes anchor the rsync patterns to the repo root, so '/docs'
-      # drops our docs directory without also dropping a future site path that
-      # happens to be called docs.
-      - name: Assemble the site directory
+      # `vite build` emits relative asset URLs (see vite.config.ts), which is
+      # what lets one artifact serve both the live site and a preview nested
+      # two directories deeper. Everything in public/ — including the
+      # dependency-free capability probe from #2 — is copied verbatim, so
+      # /probe/ keeps working at whichever depth the site is served from.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build
         run: |
-          mkdir -p _site
-          rsync -a --delete \
-            --exclude '/.*' \
-            --exclude '/_site' \
-            --exclude '/docs' \
-            --exclude '/LICENSE' \
-            --exclude '/CHANGELOG.md' \
-            --exclude '/release-please-config.json' \
-            ./ _site/
-          ls -la _site
+          npm ci
+          npm run build
+          ls -la dist
 
       - name: Upload staged site
         uses: actions/upload-artifact@v4
         with:
           name: site
-          path: _site
+          path: dist
 
   deploy:
     needs: build

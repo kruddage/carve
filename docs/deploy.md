@@ -27,11 +27,15 @@ One `build` job produces the site and uploads it as an artifact; `deploy` and `p
 consume that artifact, so what lands on a preview URL is byte-for-byte what would land on the live
 site.
 
-Today the build is a copy of the static repo root — just the coming-soon `index.html` — excluding
-`.git`, `.github`, `docs/`, `LICENSE`, `CHANGELOG.md`, and the release-please config, so the
-artifact is the site and nothing else. That copy is one clearly-marked step in `pages.yml`; when
-the Vite scaffold lands (#3) it becomes `npm ci && npm run build` and the upload path points at
-`dist`. Neither `deploy` nor `preview` cares which produced it.
+The build is `npm ci && npm run build`, and the resulting `dist/` is what gets uploaded. Two things
+end up in it:
+
+- **The app**, from the root `index.html` entry — currently still the coming-soon page, which stays
+  the landing page until #9 has a UI to put there. `docs/dev-setup.md` explains why that file is
+  both things at once.
+- **Everything under `public/`**, copied verbatim with no bundling, hashing, or transform. That is
+  how the dependency-free capability probe from #2 reaches `/probe/`: it lives at `public/probe/`,
+  so it is served there in dev and copied to `dist/probe/` at build.
 
 `deploy` runs only on push to `main` and pushes the artifact to the root of `gh-pages` with
 `keep_files: true`, which is what stops a main deploy from wiping every open PR's preview.
@@ -59,7 +63,7 @@ Two limits worth knowing:
 
 ## The base-path gotcha
 
-This is a *project* Pages site, not a user site, so everything is served under the `/carve/`
+This is a _project_ Pages site, not a user site, so everything is served under the `/carve/`
 subdirectory rather than at the domain root. Any absolute path the app emits — `/assets/app.js`,
 `/probe/`, a `fetch('/models/foo.glb')`, a service-worker scope — resolves to
 `kruddage.github.io/assets/...`, which is not this repo, and 404s. Vite defaults `base` to `/`, so
@@ -68,13 +72,13 @@ a build that works perfectly on `localhost:5173` comes up blank on Pages with no
 
 Previews make this sharper, because the site is now served from **two different depths**:
 
-| | Path |
-|---|---|
-| Live | `/carve/` |
+|         | Path                        |
+| ------- | --------------------------- |
+| Live    | `/carve/`                   |
 | Preview | `/carve/pr-preview/pr-<N>/` |
 
 A hardcoded `base: '/carve/'` is correct for the first and wrong for the second — every preview
-would silently load the *live* site's bundle, which is the worst possible failure because the page
+would silently load the _live_ site's bundle, which is the worst possible failure because the page
 renders and looks approximately right while testing the wrong code. Since `deploy` and `preview`
 share one artifact, the build cannot know its own depth.
 
@@ -90,6 +94,10 @@ The same trap applies to the capability probe from #2: link it as a relative pat
 ## CI
 
 [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) runs typecheck / lint / test / build on
-push and PR. There is no `package.json` yet, so every npm step is guarded and the workflow is
-currently a green no-op. It starts doing real work automatically once #3 lands the scaffold; no
-edit to the workflow is needed.
+push and PR. Its npm steps are guarded on `package.json` existing — that guard is now satisfied by
+the scaffold, so the workflow runs for real, and the guard stays only because it costs nothing and
+keeps the file honest if the scaffold ever moves.
+
+Note that `pages.yml` builds independently rather than depending on the CI job. That is deliberate:
+a preview should be publishable to look at even while a lint rule is failing, since seeing the
+thing on the headset is often how you work out what to fix.
