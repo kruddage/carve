@@ -53,7 +53,7 @@ graph TD
         I8["8 · Input abstraction ✅"]
         I9["9 · Desktop UI"]
         I13["13 · Hard-surface shading"]
-        I14a["14a · Save / load / export"]
+        I14a["14a · Save / load / export ✅"]
     end
 
     subgraph M3["M3 · In the headset"]
@@ -122,7 +122,7 @@ graph TD
 | [#11 Hand tracking](https://github.com/kruddage/carve/issues/11)          | 6, 8, 10      |        | 12, 15       |
 | [#12 Wrist menu](https://github.com/kruddage/carve/issues/12)             | 7b, 10, 11    |        | 14b          |
 | [#13 Shading](https://github.com/kruddage/carve/issues/13)                | 4, 6          | 15     | 15           |
-| [#14 Persistence + export (14a)](https://github.com/kruddage/carve/issues/14) | 5, 6     |        | 14b          |
+| [#14 Persistence + export (14a)](https://github.com/kruddage/carve/issues/14) ✅ | 5, 6  |        | 14b          |
 | [#14 (14b, in-headset)](https://github.com/kruddage/carve/issues/14)      | 12, 14a       |        | —            |
 | [#15 Perf budget](https://github.com/kruddage/carve/issues/15)            | 10            | 11, 13 | —            |
 | [#16 CI + deploy](https://github.com/kruddage/carve/issues/16)            | — (16a), 3 (16b) |     | everything   |
@@ -133,18 +133,25 @@ last of M1, #4 closed the renderer question, and #8 has now joined the two halve
 issue on the critical path**, and it has no blockers left.
 
 **Startable right now:** [#9](https://github.com/kruddage/carve/issues/9),
-[#10](https://github.com/kruddage/carve/issues/10), [#13](https://github.com/kruddage/carve/issues/13)
-and [#14a](https://github.com/kruddage/carve/issues/14), in parallel and by different people. #3, #5,
-`7a`, `16a`, #6, `7b`, #4 and #8 have landed. Nothing left in M2 is waiting on anything but the work
-in front of it.
+[#10](https://github.com/kruddage/carve/issues/10) and
+[#13](https://github.com/kruddage/carve/issues/13), in parallel and by different people. #3, #5,
+`7a`, `16a`, #6, `7b`, #4, #8 and `14a` have landed. Nothing left in M2 is waiting on anything but
+the work in front of it.
+
+`14a` landing early — before the UI that will call it — is deliberate rather than out of order. It
+sat off the critical path with both its blockers long since met, and the whole of it is testable
+with no screen: #9's Save and Export buttons are now wiring rather than implementation, and #12's
+in-headset file operations (`14b`) have nothing left to build but a surface. Its design notes are
+[`docs/persistence.md`](./persistence.md).
 
 #11's hand tracking is also cheaper than the graph suggests now: #8 shipped a device-agnostic
 spatial adapter, so hands are a `SpatialSample` producer feeding a state machine that already exists,
 not a second interaction model. It still needs #10 to have a session to run in.
 
 The kernel's design notes are [`docs/kernel.md`](./kernel.md) and its measured timings are
-[`docs/perf.md`](./perf.md). The renderer's design notes are [`docs/render.md`](./render.md), and the
-input layer's are [`docs/input.md`](./input.md).
+[`docs/perf.md`](./perf.md). The renderer's design notes are [`docs/render.md`](./render.md), the
+input layer's are [`docs/input.md`](./input.md), and save/export's are
+[`docs/persistence.md`](./persistence.md).
 
 ## Findings from reviewing the issues against each other
 
@@ -176,7 +183,7 @@ dependencies and all four are now cut:
 | --- | ---------------- |
 | `2 → 4` hard | Page-backend selection is a runtime feature detect. Moot now that there is one backend. |
 | `10 → 13` hard | Materials, crease normals, outline pass and the ground grid are desktop-visible work with nothing to do with entering a session. Now soft — only "measured in stereo" and the passthrough treatment need #10. |
-| `12 → 14` soft | Save, load, STL and glTF on the web need nothing from the wrist menu. Split into `14a` (web) and `14b` (in-headset file ops, which genuinely needs #12). |
+| `12 → 14` soft | Save, load, STL and glTF on the web need nothing from the wrist menu. Split into `14a` (web) and `14b` (in-headset file ops, which genuinely needs #12). `14a` has landed, months before #12 could have. |
 | #15 budget | Every number in it was Quest-at-72Hz, and every lever was XR-only. A laptop user had no target anyone was holding. #15 now carries a desktop budget too. |
 
 **6. Nothing asserted the web page works.** #16's done-when was *"the URL opens and enters immersive
@@ -205,7 +212,7 @@ the coming-soon page. Each milestone changes what is there.
 | ------------------------ | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **M0 · Ground truth** ✅ | 3, 16a            | Green CI on every PR and the probe live at `/probe/`. Complete.                                                                                                                                                                                              |
 | **M1 · Headless core** ✅ | 5 ✅, 7a ✅, 6 ✅, 7b ✅ | No pixels. Progress is the green CI check, the undo/redo fuzz test, and the kernel timings in `docs/perf.md` — now populated: a single-leaf edit on the ~20-primitive target tree re-evaluates in 6.7ms against a 16ms budget. The milestone where it looks like nothing is happening and the most is. Complete. |
-| **M2 · The web app**     | 4 ✅, 8 ✅, 9, 13, 14a | `/` stops being the coming-soon page and becomes the modeler. Booleans, outliner, gizmos, machined-looking solids, save and export — in a browser tab, on a laptop, no headset involved. **This is a shippable product, not a checkpoint.**                    |
+| **M2 · The web app**     | 4 ✅, 8 ✅, 14a ✅, 9, 13 | `/` stops being the coming-soon page and becomes the modeler. Booleans, outliner, gizmos, machined-looking solids, save and export — in a browser tab, on a laptop, no headset involved. **This is a shippable product, not a checkpoint.**                    |
 | **M3 · In the headset**  | 10, 11, 12, 14b   | Same URL, now with an Enter XR button that works. Pinch-grab a solid, spawn primitives from the wrist menu, build a part without touching a keyboard.                                                                                                          |
 | **M4 · Shippable**       | 15, 16b           | Both done-whens from #1 end to end: the web round trip, and the headset one at 72fps.                                                                                                                                                                        |
 
