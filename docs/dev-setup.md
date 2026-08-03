@@ -211,7 +211,7 @@ Two ways to ship a file into the build byte-for-byte:
 
 Neither path is bundled, transformed, hashed, or linted. Do not put sources in them.
 
-## 8. Why `index.html` is still the coming-soon page
+## 8. `index.html`: the coming-soon page, and what replaced it
 
 The repo root already had `index.html` — the coming-soon landing page — and Vite wants exactly that
 path as its entry. The collision had to be resolved one way or the other. The options were:
@@ -220,24 +220,27 @@ path as its entry. The collision had to be resolved one way or the other. The op
    shell at the root.
 2. **Keep the landing page as the app's initial shell**, with the app's entry script added to it.
 
-**We chose (2).** The app has no UI until issue #9 — the milestone where `/` stops being the
-coming-soon page and becomes the modeler. Choosing (1) would have replaced a working landing page
-with a blank one for the whole of M0 and M1, at the exact moment the project most wants a URL you
-can send someone. So `index.html` keeps its markup verbatim and gains one line:
+**We chose (2)**, on the grounds that the app had no UI until issue #9 and choosing (1) would have
+replaced a working landing page with a blank one for the whole of M0 and M1 — at the exact moment
+the project most wants a URL you can send someone. So `index.html` kept its markup verbatim and
+gained one line:
 
 ```html
 <script type="module" src="/src/main.ts"></script>
 ```
 
-`src/main.ts` renders nothing today. Issue #9 replaces the `<main>` content with the modeler; the
-coming-soon markup is the thing being replaced, not something to delete now and reinstate later.
+**#9 has now landed and `/` is the modeler**, which is the outcome that decision was holding the
+door open for. What is in the file today is a shell: an empty `#app` host that `mountApp` fills, and
+an inline boot message that is still on screen if the bundle never arrived. The layout is described
+once, in code, rather than half in markup and half in CSS.
 
-Two consequences to keep in mind:
+Two consequences that outlived the coming-soon page:
 
-- The landing page is now part of the build. It is `dist/index.html`, produced by Vite, not a static
-  copy — so edits to it go through the build, and its inline `<style>` block is Vite's problem now.
-- If a future issue wants the landing page preserved _alongside_ the app, the move is to copy it
-  into `public/` at that point, not to reverse this decision.
+- The page is part of the build. It is `dist/index.html`, produced by Vite, not a static copy — so
+  edits go through the build and its inline `<style>` block is Vite's problem.
+- The inline styles are deliberately minimal and deliberately not in `src/ui/styles.css`: they are
+  the two things that must be right _before_ the bundle executes — a dark background, so the page
+  does not flash white, and the boot message. Everything else is in the stylesheet.
 
 ## 9. The import boundary
 

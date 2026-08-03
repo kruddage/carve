@@ -58,12 +58,41 @@ import type { MeshPayload } from '../kernel/index.js';
 
 import type { Bounds, CameraPose, StandardView } from './camera-rig.js';
 import { CameraRig } from './camera-rig.js';
+import type { GizmoState } from './gizmo.js';
 import { GlRenderer } from './gl-renderer.js';
+import type { GhostState, SelectionBox } from './overlay.js';
 import { SceneGraph } from './scene-graph.js';
 
 export const RENDER_LAYER = 'render';
 
 export { STANDARD_VIEWS, type Bounds, type CameraPose, type StandardView } from './camera-rig.js';
+
+/**
+ * The gizmo's handle table, as plain data.
+ *
+ * Exported from the renderer rather than from the UI because the renderer is
+ * what draws the handles and must not learn their geometry from a layer above
+ * it. `src/ui/gizmo-drag.ts` hit-tests against this same table — see the note
+ * at the top of `gizmo.ts` for why they cannot be allowed to be two tables.
+ */
+export {
+  GIZMO_AXES,
+  GIZMO_HANDLES,
+  GIZMO_HIGHLIGHT_COLOR,
+  GIZMO_RING_RADIUS,
+  GIZMO_RING_TOLERANCE,
+  axisIndex,
+  findHandle,
+  handlesFor,
+  planeAxes,
+  type GizmoAxis,
+  type GizmoHandle,
+  type GizmoState,
+  type HandleBox,
+  type HandleKind,
+} from './gizmo.js';
+
+export type { GhostState, OverlayBounds, SelectionBox } from './overlay.js';
 
 /** Orbit/pan/zoom. #8's pointer adapter deliberately leaves these to the caller — see docs/input.md. */
 export interface CameraControls {
@@ -126,6 +155,22 @@ export interface RendererHandle {
   readonly camera: CameraControls;
   readonly stats: RendererStats;
 
+  /**
+   * Viewport furniture: the ground grid, the selection boxes, the drag ghost,
+   * the snap marker and the transform gizmo. See `overlay.ts` and `gizmo.ts`.
+   *
+   * Separate calls rather than one state object because they change at wildly
+   * different rates — the gizmo every frame, the selection on a click, the
+   * ghost only during a drag — and a combined setter would rebuild all of them
+   * at the fastest of those.
+   */
+  setGridVisible(visible: boolean): void;
+  setSelection(boxes: readonly SelectionBox[]): void;
+  setGhost(state: GhostState | null): void;
+  /** `size` is a world-space arm length; the caller screen-scales it. */
+  setSnapMarker(point: readonly [number, number, number] | null, size: number): void;
+  setGizmo(state: GizmoState | null): void;
+
   /** Record how many evaluations are queued/in flight, for `stats.evaluationQueueDepth`. */
   setEvaluationQueueDepth(depth: number): void;
 
@@ -184,6 +229,21 @@ export function createRenderer(
       cameraRig.setAspect(height === 0 ? 1 : width / height);
     },
     camera,
+    setGridVisible(visible: boolean): void {
+      sceneGraph.setGridVisible(visible);
+    },
+    setSelection(boxes: readonly SelectionBox[]): void {
+      sceneGraph.setSelection(boxes);
+    },
+    setGhost(state: GhostState | null): void {
+      sceneGraph.setGhost(state);
+    },
+    setSnapMarker(point: readonly [number, number, number] | null, size: number): void {
+      sceneGraph.setSnapMarker(point, size);
+    },
+    setGizmo(state: GizmoState | null): void {
+      sceneGraph.setGizmo(state);
+    },
     get stats(): RendererStats {
       return {
         frameTimeMs: glRenderer.lastFrameTimeMs,
