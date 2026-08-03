@@ -1,0 +1,113 @@
+name: Pages
+
+# The site is a single static index.html — no build step. Publishing model
+# follows kruddage/engine: stage the site into an artifact, then push that
+# artifact to the `gh-pages` branch. Pages Source stays on "Deploy from a
+# branch" (gh-pages / root). The branch model is what makes per-PR previews
+# possible, since every PR can own a subdirectory of the same branch.
+
+on:
+  pull_request:
+    # `closed` is what lets the preview job tear a PR's directory back down
+    # when it merges or closes. The default set is [opened, synchronize,
+    # reopened]; naming them here keeps those and adds closed.
+    types: [opened, reopened, synchronize, closed]
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    # Nothing to build on a PR-close event — the preview job only needs to
+    # delete a directory then.
+    if: ${{ github.event_name != 'pull_request' || github.event.action != 'closed' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage site
+        run: |
+          mkdir -p site
+          cp index.html site/
+
+      - name: Upload staged site
+        uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: site
+
+  deploy:
+    needs: build
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    # Serialize every gh-pages writer under one group, so two runs never push
+    # to gh-pages at once — a concurrent push is rejected non-fast-forward.
+    # Never cancel midway: a half-finished deploy leaves the live site
+    # inconsistent.
+    concurrency:
+      group: gh-pages-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download staged site
+        uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: public
+
+      - name: Publish to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          publish_branch: gh-pages
+          # keep_files preserves the pr-preview/ tree that the preview job
+          # below writes into this same branch; without it every push to
+          # main would delete every open PR's preview.
+          keep_files: true
+
+  # Publishes each pull request's build to gh-pages/pr-preview/pr-<N>/ and
+  # comments the URL on the PR, then removes that directory when the PR
+  # closes or merges.
+  #
+  # Scoped to same-repository PRs. The pull_request token is read-only for
+  # forks, so a fork PR cannot push to gh-pages.
+  preview:
+    needs: build
+    # !cancelled() lifts the implicit "needs succeeded" gate so this still
+    # runs on the close event, where build is skipped. Deploys only when the
+    # build succeeded; the close path tears down regardless.
+    if: >-
+      ${{ !cancelled() && github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && (github.event.action == 'closed' || needs.build.result == 'success') }}
+    runs-on: ubuntu-latest
+    # A convenience preview is not a correctness gate. A gh-pages push race
+    # shouldn't be able to block a merge.
+    continue-on-error: true
+    permissions:
+      contents: write
+      pull-requests: write
+    # Serialize one PR's preview runs so rapid pushes don't race each other;
+    # keyed per-PR so different PRs stay independent.
+    concurrency:
+      group: preview-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download staged site
+        if: ${{ github.event.action != 'closed' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: site
+          path: public
+
+      - name: Deploy preview
+        uses: rossjrw/pr-preview-action@v1
+        with:
+          source-dir: public
+          preview-branch: gh-pages
+          umbrella-dir: pr-preview
