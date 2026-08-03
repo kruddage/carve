@@ -51,7 +51,7 @@ graph TD
     subgraph M2["M2 · The web app"]
         I4["4 · Renderer layer (WebGL2) ✅"]
         I8["8 · Input abstraction ✅"]
-        I9["9 · Desktop UI"]
+        I9["9 · Desktop UI ✅"]
         I13["13 · Hard-surface shading"]
         I14a["14a · Save / load / export ✅"]
     end
@@ -117,7 +117,7 @@ graph TD
 | [7a Primitive schemas](https://github.com/kruddage/carve/issues/25) ✅    | 3             |        | 6            |
 | [#7 Primitive library (7b)](https://github.com/kruddage/carve/issues/7) ✅ | 6             |        | 9, 12        |
 | [#8 Input abstraction](https://github.com/kruddage/carve/issues/8) ✅     | 4, 5          |        | 9, 11        |
-| [#9 Desktop UI](https://github.com/kruddage/carve/issues/9)               | 6, 7b, 8      |        | —            |
+| [#9 Desktop UI](https://github.com/kruddage/carve/issues/9) ✅            | 6, 7b, 8      |        | —            |
 | [#10 WebXR bootstrap](https://github.com/kruddage/carve/issues/10)        | 4             | 2, 13  | 11, 12, 15   |
 | [#11 Hand tracking](https://github.com/kruddage/carve/issues/11)          | 6, 8, 10      |        | 12, 15       |
 | [#12 Wrist menu](https://github.com/kruddage/carve/issues/12)             | 7b, 10, 11    |        | 14b          |
@@ -127,16 +127,15 @@ graph TD
 | [#15 Perf budget](https://github.com/kruddage/carve/issues/15)            | 10            | 11, 13 | —            |
 | [#16 CI + deploy](https://github.com/kruddage/carve/issues/16)            | — (16a), 3 (16b) |     | everything   |
 
-**Critical path:** 3 → 5 → 6 → 7b → 9, with 4 → 8 → 9 joining it. Everything on it except #9 has
-landed: #6 was the single highest-fanout node — five issues waited on it — `7b` behind it was the
-last of M1, #4 closed the renderer question, and #8 has now joined the two halves. **#9 is the last
-issue on the critical path**, and it has no blockers left.
+**Critical path:** 3 → 5 → 6 → 7b → 9, with 4 → 8 → 9 joining it. **All of it has landed.** #6 was
+the single highest-fanout node — five issues waited on it — `7b` behind it was the last of M1, #4
+closed the renderer question, #8 joined the two halves, and #9 turned them into an application. `/`
+is the modeler; design notes are [`docs/desktop-ui.md`](./desktop-ui.md).
 
-**Startable right now:** [#9](https://github.com/kruddage/carve/issues/9),
-[#10](https://github.com/kruddage/carve/issues/10) and
+**Startable right now:** [#10](https://github.com/kruddage/carve/issues/10) and
 [#13](https://github.com/kruddage/carve/issues/13), in parallel and by different people. #3, #5,
-`7a`, `16a`, #6, `7b`, #4, #8 and `14a` have landed. Nothing left in M2 is waiting on anything but
-the work in front of it.
+`7a`, `16a`, #6, `7b`, #4, #8, `14a` and #9 have landed. Nothing left in M2 is waiting on anything
+but the work in front of it, and nothing in M3 is waiting on anything but a headset.
 
 `14a` landing early — before the UI that will call it — is deliberate rather than out of order. It
 sat off the critical path with both its blockers long since met, and the whole of it is testable
@@ -205,14 +204,14 @@ wants that exact path as its entry. #3 decided it; see `vite.config.ts`.
 
 ## Milestones, and what each one makes visible
 
-Everything user-visible lands at one URL: **https://kruddage.github.io/carve/**. It currently serves
-the coming-soon page. Each milestone changes what is there.
+Everything user-visible lands at one URL: **https://kruddage.github.io/carve/**. As of #9 it serves
+the modeler. Each milestone changes what is there.
 
 |                          | Issues            | Visible at                                                                                                                                                                                                                                                    |
 | ------------------------ | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **M0 · Ground truth** ✅ | 3, 16a            | Green CI on every PR and the probe live at `/probe/`. Complete.                                                                                                                                                                                              |
 | **M1 · Headless core** ✅ | 5 ✅, 7a ✅, 6 ✅, 7b ✅ | No pixels. Progress is the green CI check, the undo/redo fuzz test, and the kernel timings in `docs/perf.md` — now populated: a single-leaf edit on the ~20-primitive target tree re-evaluates in 6.7ms against a 16ms budget. The milestone where it looks like nothing is happening and the most is. Complete. |
-| **M2 · The web app**     | 4 ✅, 8 ✅, 14a ✅, 9, 13 | `/` stops being the coming-soon page and becomes the modeler. Booleans, outliner, gizmos, machined-looking solids, save and export — in a browser tab, on a laptop, no headset involved. **This is a shippable product, not a checkpoint.**                    |
+| **M2 · The web app**     | 4 ✅, 8 ✅, 14a ✅, 9 ✅, 13 | `/` stops being the coming-soon page and becomes the modeler. Booleans, outliner, gizmos, machined-looking solids, save and export — in a browser tab, on a laptop, no headset involved. **This is a shippable product, not a checkpoint.**                    |
 | **M3 · In the headset**  | 10, 11, 12, 14b   | Same URL, now with an Enter XR button that works. Pinch-grab a solid, spawn primitives from the wrist menu, build a part without touching a keyboard.                                                                                                          |
 | **M4 · Shippable**       | 15, 16b           | Both done-whens from #1 end to end: the web round trip, and the headset one at 72fps.                                                                                                                                                                        |
 

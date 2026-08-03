@@ -30,9 +30,9 @@ site.
 The build is `npm ci && npm run build`, and the resulting `dist/` is what gets uploaded. Two things
 end up in it:
 
-- **The app**, from the root `index.html` entry — currently still the coming-soon page, which stays
-  the landing page until #9 has a UI to put there. `docs/dev-setup.md` explains why that file is
-  both things at once.
+- **The app**, from the root `index.html` entry. As of #9 that is the modeler itself; `index.html`
+  is now a shell around an empty `#app` host that `src/ui/` fills, plus a boot message that stays on
+  screen if the bundle never arrives. See `docs/dev-setup.md` and `docs/desktop-ui.md`.
 - **Everything under `public/`**, copied verbatim with no bundling, hashing, or transform. That is
   how the dependency-free capability probe from #2 reaches `/probe/`: it lives at `public/probe/`,
   so it is served there in dev and copied to `dist/probe/` at build.
