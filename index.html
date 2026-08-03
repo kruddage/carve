@@ -1,80 +1,60 @@
 <!doctype html>
-<!--
-  The app shell.
-
-  This used to be the coming-soon landing page, kept in place because there was
-  no application to put here — see the note that stood here through M0 and M1.
-  Issue #9 is what it was waiting for: `/` is the modeler now.
-
-  What is left below is deliberately small. The `#app` host is empty and
-  `src/ui/` fills it, so there is exactly one description of the layout and it
-  is the one in code. The inline styles cover only the two things that must be
-  right *before* the bundle executes: a dark background, so the page does not
-  flash white on load, and a boot message that stays visible if the bundle never
-  arrives at all.
-
-  That last part guards the same failure `src/main.ts` does: a wrong `base` in
-  vite.config.ts 404s the bundle, and a page that renders as an empty dark
-  rectangle looks identical to a working app that has not drawn its first frame
-  — especially through a headset. The message is what is seen instead.
-
-  Rationale and consequences: docs/dev-setup.md and docs/desktop-ui.md.
--->
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Carve — hard-surface CSG modeler</title>
-    <meta
-      name="description"
-      content="A hard-surface constructive-solid-geometry modeler that runs in a browser tab and in a Quest 3 headset from the same URL."
-    />
-    <style>
-      :root {
-        color-scheme: dark;
-      }
-      html,
-      body {
-        height: 100%;
-        margin: 0;
-        background: #101014;
-        color: #e9e9ef;
-      }
-      /*
-        Shown until the bundle replaces it. `mountApp` empties `#app`, so this
-        needs no script to remove it — and if it is still on screen a second
-        after load, the bundle did not arrive.
-      */
-      .carve-booting {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font:
-          14px/1.5 -apple-system,
-          BlinkMacSystemFont,
-          'Segoe UI',
-          Roboto,
-          Helvetica,
-          Arial,
-          sans-serif;
-        color: #9a9aa8;
-        text-align: center;
-        padding: 1.5rem;
-      }
-      .carve-booting strong {
-        color: #7c5cff;
-      }
-    </style>
-    <script type="module" crossorigin src="./assets/index-gJcpu9ZV.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-CMAzSqZe.css">
-  </head>
-  <body>
-    <div id="app" class="carve-app">
-      <p class="carve-booting">
-        Loading <strong>Carve</strong>… if this stays here, the app bundle did not load.
-      </p>
-    </div>
-  </body>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Carve — Coming Soon</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0b0b0f;
+      --fg: #f5f5f7;
+      --accent: #7c5cff;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 50% 20%, #1a1a24, var(--bg) 60%);
+      color: var(--fg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      text-align: center;
+      padding: 1.5rem;
+    }
+    main { max-width: 32rem; }
+    h1 {
+      font-size: clamp(2rem, 6vw, 3rem);
+      letter-spacing: -0.02em;
+      margin: 0 0 0.5rem;
+    }
+    p {
+      font-size: 1.125rem;
+      color: #a1a1aa;
+      margin: 0;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.35rem 0.9rem;
+      margin-bottom: 1.5rem;
+      border-radius: 999px;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-size: 0.8rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <span class="badge">Coming Soon</span>
+    <h1>Carve</h1>
+    <p>We're building something. Check back soon.</p>
+  </main>
+</body>
 </html>
